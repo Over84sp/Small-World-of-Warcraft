@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "genmap": "tsx scripts/genmap.ts",
-    "sim": "tsx scripts/sim.ts"
+    "sim": "tsx scripts/sim.ts",
+    "tuttest": "tsx scripts/tuttest.ts"
   },
   "dependencies": {
     "react": "^19.2.8",

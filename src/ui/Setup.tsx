@@ -8,7 +8,7 @@ export interface SetupResult {
   seed: number
 }
 
-export function Setup({ onStart }: { onStart: (r: SetupResult) => void }) {
+export function Setup({ onStart, onTutorial }: { onStart: (r: SetupResult) => void; onTutorial: () => void }) {
   const [count, setCount] = useState(3)
   const [humans, setHumans] = useState(1)
   const [boardId, setBoardId] = useState(defaultBoardFor(3))
@@ -87,6 +87,9 @@ export function Setup({ onStart }: { onStart: (r: SetupResult) => void }) {
 
         <button className="primary big" onClick={start}>
           Comenzar · {ROUNDS_BY_PLAYERS[count]} rondas
+        </button>
+        <button className="ghost big" onClick={onTutorial}>
+          🎓 ¿Primera vez? Tutorial interactivo
         </button>
       </div>
     </div>

@@ -21,6 +21,11 @@ todo el mapa, el arte y el código están redibujados desde cero, sin usar mater
 - **IA** para los rivales, con heurística de valor/coste por región, gestión de riesgo y
   decisión de cuándo mandar su raza al declive.
 - **Hotseat**: de 1 a 5 humanos en el mismo navegador; el resto son bots.
+- **Tutorial interactivo** de 13 pasos: se juega sobre el motor real, con el tablero preparado
+  para cada lección (desembarco, montañas, tribus perdidas, combate, dado, redespliegue, declive).
+- **Adaptado a móvil**: layout de mapa + panel deslizante, zoom con pellizco y arrastre,
+  objetivos táctiles de 44 px y confirmación en dos toques.
+- **Deshacer** (Ctrl+Z o el botón ↶) para revertir cualquier acción de tu turno.
 
 ## Desarrollo
 
@@ -30,6 +35,7 @@ npm run dev        # servidor de desarrollo
 npm run build      # build de producción en dist/
 npm run genmap     # regenera el mapa desde scripts/mapSeeds.ts
 npm run sim        # 200 partidas IA vs IA para equilibrar
+npm run tuttest    # comprueba que el guion del tutorial es jugable de principio a fin
 ```
 
 ### Estructura
