@@ -6,10 +6,14 @@ todo el mapa, el arte y el código están redibujados desde cero, sin usar mater
 
 ▶ **Jugar:** https://over84sp.github.io/Small-World-of-Warcraft/
 
-![captura](docs/screenshot.png)
+![El tablero de Azeroth](docs/board.png)
 
 ## Qué incluye
 
+- **Arte vectorial propio**: textura de terreno dibujada por región (árboles, picos, cultivos,
+  cañaverales, dunas) y símbolos de reglas como SVG nítidos — nada de emoji, que cada
+  sistema dibuja distinto. La propiedad se marca con una banda del color del jugador
+  pegada al borde, para que el terreno siga siendo identificable.
 - **Mapa de Azeroth generado por Voronoi**: 53 regiones reales (Durotar, Tirisfal, Un'Goro, Tanaris…)
   repartidas en Kalimdor, los Reinos del Este y varias islas, con adyacencias y costas calculadas
   automáticamente a partir de la geometría.

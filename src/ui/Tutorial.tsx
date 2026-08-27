@@ -22,9 +22,13 @@ interface Step {
   done?: (s: GameState) => boolean
   cta?: string
   panel?: PanelKind
+  /** shown when the tutorial hands out or takes away tokens, so the maths never lies */
+  note?: string
 }
 
 const HORDE = 'tut-horde'
+/** deliberately generous so the whole scripted turn fits without silent top-ups */
+const TUTORIAL_ARMY = 20
 
 function stageFaction(s: GameState) {
   if (!s.factions[HORDE]) {
@@ -130,8 +134,9 @@ export const STEPS: Step[] = [
     ),
     setup: (s) => {
       const f = s.factions[s.players[0].activeUid!]
-      if (f && regionsOf(s, f.uid).length === 0) f.hand = 9
+      if (f && regionsOf(s, f.uid).length === 0) f.hand = TUTORIAL_ARMY
     },
+    note: `Solo en el tutorial: te doy ${TUTORIAL_ARMY} fichas en vez de las 7 de tu combinación, para que puedas probarlo todo en un turno. A partir de aquí el contador baja de verdad con cada conquista.`,
     spotlight: () => ['durotar'],
     done: (s) => s.regions['durotar'].owner === s.players[0].activeUid,
     panel: 'conquer',
@@ -184,8 +189,6 @@ export const STEPS: Step[] = [
       if (s.regions['felwood'].owner === 'lost-tribe' || s.regions['felwood'].owner === null) {
         setRegion(s, 'felwood', 'lost-tribe', 1)
       }
-      const f = s.factions[s.players[0].activeUid!]
-      if (f && f.hand < 4) f.hand = 4
     },
     spotlight: () => ['felwood'],
     done: (s) => s.regions['felwood'].owner === s.players[0].activeUid,
@@ -207,8 +210,6 @@ export const STEPS: Step[] = [
     setup: (s) => {
       stageFaction(s)
       if (s.regions['ashenvale'].owner !== s.players[0].activeUid) setRegion(s, 'ashenvale', HORDE, 2)
-      const f = s.factions[s.players[0].activeUid!]
-      if (f && f.hand < 5) f.hand = 5
     },
     spotlight: () => ['ashenvale'],
     done: (s) => s.regions['ashenvale'].owner === s.players[0].activeUid,
@@ -234,6 +235,7 @@ export const STEPS: Step[] = [
       if (f && s.turn.diceUsed === 0) f.hand = 3
       if (s.regions['winterspring'].owner === null) setRegion(s, 'winterspring', 'lost-tribe', 1)
     },
+    note: 'Para esta lección te dejo a propósito con solo 3 fichas: así te falta justo lo necesario para tener que arriesgarte.',
     spotlight: () => ['winterspring'],
     done: (s) => s.turn.diceUsed > 0,
     panel: 'dice',
@@ -253,10 +255,11 @@ export const STEPS: Step[] = [
     setup: (s) => {
       const f = s.factions[s.players[0].activeUid!]
       if (f && s.phase === 'conquer') {
-        if (f.hand < 3) f.hand = 3
+        f.hand = Math.max(f.hand, 3)
         startRedeploy(s)
       }
     },
+    note: 'Te dejo 3 fichas sin colocar para que practiques el reparto.',
     done: (s) => s.phase === 'redeploy' && s.factions[s.players[0].activeUid!]?.hand === 0,
     panel: 'redeploy',
   },
@@ -428,6 +431,7 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
       </div>
       <h2>{cur.title}</h2>
       <div className="tuttext">{cur.body}</div>
+      {cur.note && <p className="tutnote">🎓 {cur.note}</p>}
 
       {cur.panel === 'tray' && (
         <div className="tray">

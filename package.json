@@ -15,8 +15,7 @@
     "check": "tsc -b && npm run sim && npm run tuttest && npm run navtest"
   },
   "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -26,6 +25,7 @@
     "d3-delaunay": "^6.0.4",
     "oxlint": "^1.79.0",
     "polygon-clipping": "^0.15.7",
+    "react-dom": "^19.2.8",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2",
     "vite": "^8.2.2"

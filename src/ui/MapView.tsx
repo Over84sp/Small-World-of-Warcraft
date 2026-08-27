@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, ownerPlayer } from '../game/engine'
 import { LOST_TRIBE, type GameState, type RegionData } from '../game/types'
 import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL } from './theme'
+import { Badge, badgesFor, terrainDecor } from './mapArt'
 
 interface Props {
   state: GameState
@@ -34,6 +35,17 @@ function roundedPath(points: [number, number][], r = 3.5) {
     d += ` Q ${cur[0]} ${cur[1]} ${p2[0]} ${p2[1]}`
   }
   return d + ' Z'
+}
+
+/** splits long region names at the most central space, max two lines */
+function wrapName(name: string): string[] {
+  if (name.length <= 13) return [name]
+  const spaces: number[] = []
+  for (let i = 0; i < name.length; i++) if (name[i] === ' ') spaces.push(i)
+  if (!spaces.length) return [name]
+  const mid = name.length / 2
+  const at = spaces.reduce((best, i) => (Math.abs(i - mid) < Math.abs(best - mid) ? i : best), spaces[0])
+  return [name.slice(0, at), name.slice(at + 1)]
 }
 
 interface View { k: number; tx: number; ty: number }
@@ -177,6 +189,24 @@ export function MapView({
           <pattern id="waves" width="18" height="18" patternUnits="userSpaceOnUse">
             <path d="M0 12 q4.5 -5 9 0 t9 0" fill="none" stroke="#2b5573" strokeWidth="0.8" opacity="0.5" />
           </pattern>
+          {/* soft shoreline halo so land reads as land */}
+          <filter id="shore" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="b" />
+            <feFlood floodColor="#071019" floodOpacity="0.75" />
+            <feComposite in2="b" operator="in" />
+            <feComposite in2="SourceAlpha" operator="out" result="halo" />
+            <feMerge><feMergeNode in="halo" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.10" />
+            <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+          </linearGradient>
+          {regions.map((r) => (
+            <clipPath key={`cp-${r.id}`} id={`cp-${r.id}`}>
+              <path d={roundedPath(r.polygon)} />
+            </clipPath>
+          ))}
         </defs>
 
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#sea)" />
@@ -198,11 +228,25 @@ export function MapView({
                 onClick={() => clickRegion(r.id)}
               >
                 <title>{`${r.name} — ${TERRAIN_LABEL[r.terrain]}${r.mountain ? ' (montaña, +1 def)' : ''}${r.coastal ? ' · costera ⚓' : ''}${r.landmark ? ` · ${r.landmark}` : ''}\nDefensa: ${defenseOf(state, r.id)}${targets[r.id] ? `\nCoste de conquista: ${targets[r.id].cost}` : ''}`}</title>
-                <path d={roundedPath(r.polygon)} fill={TERRAIN_COLORS[r.terrain]} stroke="#0d1620" strokeWidth={1.2} />
+                <path d={roundedPath(r.polygon)} fill={TERRAIN_COLORS[r.terrain]} filter="url(#shore)" />
+                <g clipPath={`url(#cp-${r.id})`}>
+                  {terrainDecor(r)}
+                  {/* ownership reads as a coloured band hugging the border, so the
+                      terrain underneath stays identifiable at a glance */}
+                  {pid !== null && (
+                    <path d={roundedPath(r.polygon)} fill="none"
+                      stroke={PLAYER_COLORS[pid]} strokeWidth={9}
+                      strokeDasharray={state.factions[owner!]?.inDecline ? '7 5' : undefined}
+                      opacity={state.factions[owner!]?.inDecline ? 0.55 : 0.95} />
+                  )}
+                  {owner === LOST_TRIBE && (
+                    <path d={roundedPath(r.polygon)} fill="none" stroke="#11181f" strokeWidth={9} opacity={0.5} />
+                  )}
+                </g>
                 {pid !== null && (
-                  <path d={roundedPath(r.polygon)} fill={PLAYER_COLORS[pid]} opacity={state.factions[owner!]?.inDecline ? 0.3 : 0.55} />
+                  <path d={roundedPath(r.polygon)} fill={PLAYER_COLORS[pid]} opacity={0.12} />
                 )}
-                {owner === LOST_TRIBE && <path d={roundedPath(r.polygon)} fill="#000" opacity={0.28} />}
+                <path d={roundedPath(r.polygon)} fill="url(#sheen)" pointerEvents="none" />
                 <path className="outline" d={roundedPath(r.polygon)} fill="none" stroke="#0d1620" strokeWidth={1.2} />
               </g>
             )
@@ -216,24 +260,42 @@ export function MapView({
             const dimmed = !!spot && !spot.has(r.id)
             return (
               <g key={`o-${r.id}`} className={`overlay${dimmed ? ' dimmed' : ''}`} pointerEvents="none">
-                {r.mountain && <text x={cx} y={cy - s(12)} className="icon" fontSize={s(8)}>⛰</text>}
-                {r.landmark && <text x={cx + s(13)} y={cy - s(11)} className="icon gold" fontSize={s(8)}>★</text>}
-                {r.coastal && <text x={cx - s(15)} y={cy - s(11)} className="icon anchor" fontSize={s(8)}>⚓</text>}
-                <text x={cx} y={cy - s(2)} className="rname" fontSize={s(7.2)} strokeWidth={s(2.2)}>{r.name}</text>
+                {(() => {
+                  const kinds = badgesFor(r, st)
+                  const br = s(5.6)
+                  const gap = br * 2.3
+                  return kinds.map((k, i) => (
+                    <Badge key={k} kind={k} r={br}
+                      x={cx + (i - (kinds.length - 1) / 2) * gap}
+                      y={cy - s(16)} />
+                  ))
+                })()}
+                {(() => {
+                  // long names wrap onto two lines so they stay inside their region;
+                  // the halo is a separate stroked copy because `paint-order` is not
+                  // reliable across browsers
+                  const lines = wrapName(r.name)
+                  const fs = s(lines.length > 1 ? 6.8 : 7.6)
+                  const y0 = cy - s(1) - (lines.length - 1) * fs * 0.42
+                  return lines.map((line, li) => (
+                    <g key={li}>
+                      <text x={cx} y={y0 + li * fs * 0.95} className="rname halo" fontSize={fs} strokeWidth={s(1.7)}>{line}</text>
+                      <text x={cx} y={y0 + li * fs * 0.95} className="rname" fontSize={fs}>{line}</text>
+                    </g>
+                  ))
+                })()}
                 {st.owner && (
-                  <g transform={`translate(${cx}, ${cy + s(12)})`}>
+                  <g transform={`translate(${cx}, ${cy + s(11)})`}>
                     <circle r={s(8.5)} fill={st.owner === LOST_TRIBE ? '#2f3a44' : PLAYER_COLORS[pid!]}
                       stroke="#0b1219" strokeWidth={s(1.4)} opacity={decline ? 0.65 : 1} />
                     <text className="tokens" y={s(3.4)} fontSize={s(9.5)}>{st.tokens}</text>
                   </g>
                 )}
-                {st.fortress > 0 && <text x={cx + s(18)} y={cy + s(16)} className="icon" fontSize={s(8)}>🛡</text>}
-                {st.hero && <text x={cx - s(18)} y={cy + s(16)} className="icon" fontSize={s(8)}>🗡</text>}
                 {targets[r.id] && (
-                  <g transform={`translate(${cx + (st.owner ? s(22) : 0)}, ${cy + s(12)})`} className="costbadge">
+                  <g transform={`translate(${cx + (st.owner ? s(22) : 0)}, ${cy + s(11)})`} className="costbadge">
                     <circle r={s(9)} />
                     <text y={s(3.4)} fontSize={s(9.5)}>{targets[r.id].cost}</text>
-                    {targets[r.id].viaSea && <text y={-s(11)} className="icon anchor" fontSize={s(8)}>⚓</text>}
+                    {targets[r.id].viaSea && <Badge kind="anchor" x={s(10)} y={s(7)} r={s(4.4)} />}
                   </g>
                 )}
                 {spot?.has(r.id) && (

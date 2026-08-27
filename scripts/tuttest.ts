@@ -19,7 +19,8 @@ chk(!!s.players[0].activeUid,'elige Humanos Mercaderes')
 const f=()=>s.factions[s.players[0].activeUid!]
 
 // step: first conquest
-if(regionsOf(s,f().uid).length===0) f().hand=9
+if(regionsOf(s,f().uid).length===0) f().hand=20
+console.log('  ..   ejército del tutorial: 20 fichas (anunciado en pantalla)')
 let i=conquestCost(s,'durotar'); chk(i.reachable&&i.cost===3,`Durotar por mar (2 base + 1 desembarco), coste ${i.cost} (esperado 3)`)
 chk(conquer(s,'durotar').ok,'conquista Durotar')
 
@@ -31,8 +32,8 @@ chk(conquer(s,'azshara').ok,'conquista Azshara')
 i=conquestCost(s,'hyjal'); chk(i.reachable&&i.cost===3,`Hyjal montaña, coste ${i.cost} (esperado 3)`)
 chk(conquer(s,'hyjal').ok,'conquista Monte Hyjal')
 
-// step: lost tribe
-if(f().hand<4) f().hand=4
+// step: lost tribe  (SIN rellenar la mano: debe salir la cuenta sola)
+chk(f().hand===12,`tras Durotar+Azshara+Hyjal quedan ${f().hand} fichas (20-3-2-3 = 12)`)
 i=conquestCost(s,'felwood'); chk(i.reachable&&i.cost===3,`Felwood tribu perdida, coste ${i.cost} (esperado 3)`)
 chk(conquer(s,'felwood').ok,'somete Felwood')
 
@@ -40,19 +41,21 @@ chk(conquer(s,'felwood').ok,'somete Felwood')
 s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'berserk',inDecline:false,hand:0,markers:0}
 s.players[1].activeUid=HORDE
 setR(s,'ashenvale',HORDE,2)
-if(f().hand<5) f().hand=5
+chk(f().hand===9,`tras Felwood quedan ${f().hand} fichas (12-3 = 9)`)
 i=conquestCost(s,'ashenvale'); chk(i.reachable&&i.cost===4,`Ashenvale con 2 defensores, coste ${i.cost} (esperado 4)`)
 chk(conquer(s,'ashenvale').ok,'expulsa a la Horda')
 chk(s.turn.pendingReturns[HORDE]===1,'el defensor recupera 1 ficha (pierde 1)')
 
-// step: dice
+chk(f().hand===5,`tras Ashenvale quedan ${f().hand} fichas (9-4 = 5)`)
+
+// step: dice  (staging deliberado y anunciado)
 f().hand=3
 i=conquestCost(s,'winterspring'); chk(i.reachable&&i.cost===4,`Winterspring montaña+tribu, coste ${i.cost} (esperado 4)`)
 const roll=conquer(s,'winterspring',true)
 chk(s.turn.diceUsed===1,`dado lanzado (sacó ${roll.rolled}, ${roll.ok?'éxito':'fallo'}) — el paso avanza igual`)
 
 // step: redeploy
-if(s.phase==='conquer'){ if(f().hand<3) f().hand=3; startRedeploy(s) }
+if(s.phase==='conquer'){ f().hand=Math.max(f().hand,3); startRedeploy(s) }
 chk(s.phase==='redeploy','entra en redespliegue')
 autoRedeploy(s)
 chk(f().hand===0,'reparte todas las fichas')
