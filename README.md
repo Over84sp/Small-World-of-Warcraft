@@ -36,6 +36,7 @@ npm run build      # build de producción en dist/
 npm run genmap     # regenera el mapa desde scripts/mapSeeds.ts
 npm run sim        # 200 partidas IA vs IA para equilibrar
 npm run tuttest    # comprueba que el guion del tutorial es jugable de principio a fin
+npm run navtest    # comprueba la navegación del tutorial (rebobinado al ir atrás)
 ```
 
 ### Estructura

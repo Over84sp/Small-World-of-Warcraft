@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   autoRedeploy, conquer, conquestCost, createGame, defenseOf, factionLabel,
   goIntoDecline, placeToken, regionsOf, scoreFor, selectCombo, startRedeploy,
@@ -54,7 +54,7 @@ const Cost = ({ parts, total }: { parts: [string, number][]; total: number }) =>
   </div>
 )
 
-const STEPS: Step[] = [
+export const STEPS: Step[] = [
   {
     id: 'welcome',
     title: 'Bienvenido a Azeroth',
@@ -332,6 +332,13 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
     return s
   })
 
+  // board state as it was when each step began, so "Atrás" really rewinds
+  const snaps = useRef<Record<number, GameState>>({})
+  // only auto-advance when the goal is met *during* the step, never on arrival
+  const armed = useRef(true)
+  const stateRef = useRef(state)
+  stateRef.current = state
+
   const act = useCallback((fn: (s: GameState) => void) => {
     setState((prev) => {
       const next = structuredClone(prev) as GameState
@@ -340,22 +347,42 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
     })
   }, [])
 
+  const enterStep = useCallback((i: number, back = false) => {
+    const target = STEPS[i]
+    let next: GameState
+    if (back && snaps.current[i]) {
+      // rewind: undo everything the player did during the steps we leave behind
+      next = structuredClone(snaps.current[i])
+    } else {
+      next = structuredClone(stateRef.current)
+      target.setup?.(next)
+      snaps.current[i] = structuredClone(next)
+    }
+    armed.current = !(target.done?.(next) ?? false)
+    stateRef.current = next
+    setState(next)
+    setStep(i)
+    setSelected(null)
+    setFlash(null)
+    setSheetOpen(true)
+  }, [])
+
   const cur = STEPS[step]
 
-  // stage the board when entering a step
-  useEffect(() => {
-    if (cur.setup) act(cur.setup)
-    setSelected(null)
-    setSheetOpen(true)
-  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+  // snapshot the opening position of step 0
+  useEffect(() => { enterStep(0) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // auto-advance when the lesson's goal is met
   useEffect(() => {
+    if (!armed.current) return
     if (cur.done?.(state)) {
-      const t = setTimeout(() => setStep((i) => Math.min(i + 1, STEPS.length - 1)), 850)
+      armed.current = false
+      const t = setTimeout(() => enterStep(Math.min(step + 1, STEPS.length - 1)), 850)
       return () => clearTimeout(t)
     }
-  }, [state, cur])
+  }, [state, cur, step, enterStep])
+
+  const goalMet = !!cur.done?.(state)
 
   useEffect(() => {
     if (!flash) return
@@ -473,14 +500,17 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
       )}
 
       <div className="tutnav">
-        <button className="ghost" onClick={() => setStep((i) => Math.max(0, i - 1))} disabled={step === 0}>← Atrás</button>
+        <button className="ghost" onClick={() => enterStep(Math.max(0, step - 1), true)} disabled={step === 0}>
+          ← Atrás
+        </button>
         {cur.cta ? (
-          <button className="primary" onClick={() => (step === STEPS.length - 1 ? onExit() : setStep((i) => i + 1))}>
+          <button className="primary" onClick={() => (step === STEPS.length - 1 ? onExit() : enterStep(step + 1))}>
             {cur.cta}
           </button>
         ) : (
-          <button className="ghost" onClick={() => setStep((i) => Math.min(STEPS.length - 1, i + 1))}>
-            Saltar paso →
+          <button className={goalMet ? 'primary' : 'ghost'}
+            onClick={() => enterStep(Math.min(STEPS.length - 1, step + 1))}>
+            {goalMet ? 'Siguiente →' : 'Saltar paso →'}
           </button>
         )}
         <button className="ghost quit" onClick={onExit}>Salir</button>
@@ -507,7 +537,7 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
           compact={isMobile}
         />
         {flash && <div className="flash">{flash}</div>}
-        {cur.done?.(state) && <div className="okflash">✔ ¡Hecho!</div>}
+        {goalMet && armed.current === false && <div className="okflash">✔ ¡Hecho!</div>}
       </main>
 
       {isMobile ? (

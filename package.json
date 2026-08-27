@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "genmap": "tsx scripts/genmap.ts",
     "sim": "tsx scripts/sim.ts",
-    "tuttest": "tsx scripts/tuttest.ts"
+    "tuttest": "tsx scripts/tuttest.ts",
+    "navtest": "tsx --tsconfig tsconfig.app.json scripts/navtest.ts",
+    "check": "tsc -b && npm run sim && npm run tuttest && npm run navtest"
   },
   "dependencies": {
     "react": "^19.2.8",
