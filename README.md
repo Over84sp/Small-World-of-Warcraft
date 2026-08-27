@@ -55,3 +55,5 @@ En el repositorio: **Settings → Pages → Source: GitHub Actions**.
 
 Warcraft y Small World of Warcraft son marcas de Blizzard Entertainment y Days of Wonder.
 Este es un proyecto no comercial hecho por fans, sin afiliación ni assets oficiales.
+
+<!-- desplegado en https://over84sp.github.io/Small-World-of-Warcraft/ -->
