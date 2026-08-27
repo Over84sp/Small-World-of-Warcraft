@@ -4,7 +4,7 @@ Juego de conquista por turnos ambientado en Azeroth, jugable en el navegador.
 Proyecto de fans inspirado en **Small World of Warcraft** (Days of Wonder / Blizzard):
 todo el mapa, el arte y el código están redibujados desde cero, sin usar materiales originales.
 
-▶ **Jugar:** https://USUARIO.github.io/smallworld-azeroth/
+▶ **Jugar:** https://over84sp.github.io/Small-World-of-Warcraft/
 
 ![captura](docs/screenshot.png)
 
