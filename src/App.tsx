@@ -219,7 +219,10 @@ export default function App() {
             <li key={p.id}><i style={{ background: PLAYER_COLORS[p.id] }} />{p.name}<strong>{p.coins}</strong></li>
           ))}
         </ol>
-        <button className="primary" onClick={() => { clearSave(); setScreen('setup') }}>Jugar otra vez</button>
+        <div className="modalActions">
+          <button className="primary" onClick={() => { clearSave(); setState(null); setScreen('setup'); clearTurnState() }}>Jugar otra vez</button>
+          <button className="ghost danger" onClick={() => { clearSave(); setState(null); setScreen('setup'); clearTurnState() }}>Volver al inicio</button>
+        </div>
       </section>
     ) : (
       <>
@@ -483,7 +486,9 @@ export default function App() {
         </div>
         <button className="ghost undo" onClick={undo} disabled={!history.length || isBotTurn} title="Deshacer (Ctrl+Z)">↶</button>
         <button className="ghost" onClick={() => setRules(true)}>{isMobile ? '?' : 'Reglas'}</button>
-        <button className="ghost danger" onClick={() => setShowAbandon(true)} title="Abandonar partida">{isMobile ? '⏻' : 'Abandonar'}</button>
+        {state.phase !== 'gameover' && (
+          <button className="ghost danger" onClick={() => setShowAbandon(true)} title="Abandonar partida">{isMobile ? '⏻' : 'Abandonar'}</button>
+        )}
       </header>
 
       <main className="board">
