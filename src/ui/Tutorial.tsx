@@ -6,6 +6,7 @@ import {
 import { RACE_BY_ID, POWER_BY_ID } from '../game/abilities'
 import type { GameState } from '../game/types'
 import { MapView } from './MapView'
+import { FactionIcon } from './mapArt'
 import { PLAYER_COLORS } from './theme'
 import { useIsMobile } from './useMediaQuery'
 
@@ -48,9 +49,9 @@ function setRegion(s: GameState, id: string, owner: string | null, tokens: numbe
 const Cost = ({ parts, total }: { parts: [string, number][]; total: number }) => (
   <div className="costcalc">
     {parts.map(([label, n], i) => (
-      <span key={label} className="cpart">
-        {i > 0 && <b>+</b>}
-        <em>{n}</em>
+      <span key={label} className={`cpart${n < 0 ? ' minus' : ''}`}>
+        {i > 0 && <b>{n < 0 ? '−' : '+'}</b>}
+        <em>{Math.abs(n)}</em>
         <i>{label}</i>
       </span>
     ))}
@@ -158,6 +159,35 @@ export const STEPS: Step[] = [
     panel: 'conquer',
   },
   {
+    id: 'factions',
+    title: 'Alianza contra Horda',
+    body: (
+      <>
+        <p>Media Azeroth tiene bandera. Míralas en el mapa, abajo a la izquierda de cada región:</p>
+        <div className="factlegend">
+          <span className="fl alliance"><FactionIcon side="alliance" size={22} /> Alianza</span>
+          <span className="fl horde"><FactionIcon side="horde" size={22} /> Horda</span>
+          <span className="fl none">sin emblema = tierra de nadie</span>
+        </div>
+        <p>Tu raza también tiene bando. Los <strong>Humanos</strong> que has elegido son
+          <strong> Alianza</strong>, así que:</p>
+        <ul className="factrules">
+          <li><b>🏳 Patria:</b> una región <em>de la Alianza</em> te cuesta <b>1 ficha menos</b>;
+            los tuyos se te unen.</li>
+          <li><b>⚔ Botín:</b> cada región <em>de la Horda</em> que tomes te da <b>+1 moneda</b>,
+            pero solo el turno en que la conquistas.</li>
+        </ul>
+        <p><strong>Durotar</strong> y <strong>Azshara</strong>, que ya son tuyas, son de la Horda:
+          llevas <strong>+2 monedas</strong> de botín apuntadas para el final del turno.</p>
+        <p className="hint">Las razas neutrales (Múrlocs, Pandaren, Naga, Dragón Negro) no tienen
+          patria, pero saquean a los dos bandos. Y los Orcos cobran el botín doble contra la Alianza.</p>
+      </>
+    ),
+    spotlight: () => ['durotar', 'azshara', 'ashenvale', 'darkshore'],
+    cta: 'Entendido',
+    panel: 'none',
+  },
+  {
     id: 'mountain',
     title: 'Las montañas se defienden solas',
     body: (
@@ -201,13 +231,10 @@ export const STEPS: Step[] = [
       <>
         <p>La Horda se ha instalado en <strong>Ashenvale</strong> con <strong>2 fichas</strong>.
           Cuestan lo mismo que cualquier defensor: +1 cada una.</p>
-        <p>Pero Ashenvale es <strong>territorio de la Alianza</strong> y tú juegas con
-          <strong> Humanos</strong>, que son de la Alianza: los tuyos se te unen y la conquista
-          cuesta <strong>1 ficha menos</strong>. Es tu <strong>patria</strong>.</p>
+        <p>Y aquí ves la <strong>patria</strong> en acción: Ashenvale es de la
+          <strong> Alianza</strong>, igual que tus Humanos, así que descuentas <strong>1 ficha</strong>.
+          Atacar a un rival dentro de tu propio bando sale más barato.</p>
         <Cost parts={[['base', 2], ['2 defensores', 2], ['tu bandera', -1]]} total={3} />
-        <p>Al revés funciona igual de bien: <strong>Durotar</strong> y <strong>Azshara</strong>,
-          que ya has tomado, son de la <strong>Horda</strong>, y saquear la bandera contraria
-          te dará <strong>+1 moneda cada una</strong> al puntuar.</p>
         <p>Al expulsarlo, el defensor <strong>pierde 1 ficha para siempre</strong> y recupera el resto,
           que volverá al tablero al final de tu turno. Por eso atacar desgasta a los dos.</p>
         <p className="doit">👉 Expulsa a la Horda de <strong>Ashenvale</strong>.</p>
