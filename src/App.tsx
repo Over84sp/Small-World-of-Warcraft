@@ -31,6 +31,7 @@ export default function App() {
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
   const [confirmMode, setConfirmMode] = useState(isTouch)
+  const [showAbandon, setShowAbandon] = useState(false)
   const botTimer = useRef<number | null>(null)
   // mirror of `state` so snapshots happen outside the setState updater
   // (StrictMode invokes updaters twice and would duplicate history entries)
@@ -68,6 +69,16 @@ export default function App() {
 
   const clearTurnState = () => {
     setHistory([])
+    setSelected(null)
+    setMarkerMode(false)
+  }
+
+  const abandonGame = () => {
+    clearSave()
+    setState(null)
+    setScreen('setup')
+    clearTurnState()
+    setShowAbandon(false)
     setSelected(null)
     setMarkerMode(false)
   }
@@ -117,10 +128,12 @@ export default function App() {
     return () => clearTimeout(t)
   }, [flash])
 
-  // Esc cancels the current selection / mode
+  // Esc cancels the current selection / mode / modals
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (showAbandon) { setShowAbandon(false); return }
+        if (rules) { setRules(false); return }
         setSelected(null)
         setMarkerMode(false)
       }
@@ -131,7 +144,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showAbandon, rules])
 
   if (screen === 'tutorial') return <Tutorial onExit={() => setScreen('setup')} />
   if (!state || !player || screen === 'setup') {
@@ -406,6 +419,11 @@ export default function App() {
             ))}
           </ul>
         </section>
+
+        <section className="card dangerzone">
+          <button className="ghost danger full" onClick={() => setShowAbandon(true)}>⏻ Abandonar partida</button>
+          <p className="hint small">Borra el guardado y vuelve al inicio. Se puede deshacer mientras no cierres la pestaña con Ctrl+Z, pero el guardado se pierde.</p>
+        </section>
       </>
     )
 
@@ -428,7 +446,7 @@ export default function App() {
         </div>
         <button className="ghost undo" onClick={undo} disabled={!history.length || isBotTurn} title="Deshacer (Ctrl+Z)">↶</button>
         <button className="ghost" onClick={() => setRules(true)}>{isMobile ? '?' : 'Reglas'}</button>
-        <button className="ghost" onClick={() => setScreen('setup')}>{isMobile ? '⏻' : 'Nueva'}</button>
+        <button className="ghost danger" onClick={() => setShowAbandon(true)} title="Abandonar partida">{isMobile ? '⏻' : 'Abandonar'}</button>
       </header>
 
       <main className="board">
@@ -492,6 +510,20 @@ export default function App() {
             </label>
             <p className="muted">Proyecto de fans inspirado en Small World of Warcraft (Days of Wonder / Blizzard). Mapa y arte redibujados desde cero.</p>
             <button className="primary" onClick={() => setRules(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {showAbandon && (
+        <div className="modal" onClick={() => setShowAbandon(false)}>
+          <div className="modalbox small" onClick={(e) => e.stopPropagation()}>
+            <h2>¿Abandonar partida?</h2>
+            <p>Se borrará el guardado automático y volverás a la pantalla de inicio. Esta acción no se puede deshacer.</p>
+            <p className="muted">Ronda {state.round}/{state.maxRounds} · {BOARDS.find((b) => b.id === state.boardId)?.name}</p>
+            <div className="modalActions">
+              <button className="ghost danger" onClick={abandonGame}>Sí, abandonar y borrar</button>
+              <button className="primary" onClick={() => setShowAbandon(false)}>Seguir jugando</button>
+            </div>
           </div>
         </div>
       )}
