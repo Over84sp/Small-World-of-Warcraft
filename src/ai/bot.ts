@@ -1,9 +1,8 @@
 import {
   REGION_BY_ID, autoRedeploy, canDeclineNow, comboTokens, conquer, conquestCost,
   ctxOf, diplomacyOptions, endTurn, goIntoDecline, legalTargets, needsDiplomacy,
-  ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, startRedeploy,
-} from '../game/engine'
-import { RACE_BY_ID, POWER_BY_ID } from '../game/abilities'
+  ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, startRedeploy, sideOf } from '../game/engine'
+import { RACE_BY_ID, POWER_BY_ID, isEnemyRegion } from '../game/abilities'
 import type { GameState } from '../game/types'
 
 export type BotAction =
@@ -29,6 +28,8 @@ function regionValue(state: GameState, regionId: string, uid: string): number {
     const after = a.scoreBonus({ ...ctx, owned: [...ctx.owned, r] })
     v += after - before
   }
+  // faction warfare: plundering the enemy flag is worth a coin this turn
+  if (isEnemyRegion(sideOf(f), r)) v += f.raceId === 'orcs' && r.faction === 'alliance' ? 2 : 1
   if (r.landmark) v += 0.3
   if (r.mountain) v += 0.2 // easier to defend
   // clustering bonus: adjacency to our own regions is safer

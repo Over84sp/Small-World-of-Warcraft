@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BOARDS, REGION_BY_ID, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
   conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
-  goIntoDecline, needsDiplomacy, placeMarker, placeToken, regionsOf, scoreFor,
-  selectCombo, setPeace, startRedeploy,
+  goIntoDecline, needsDiplomacy, placeMarker, placeToken, plunderThisTurn, regionsOf,
+  scoreFor, selectCombo, setPeace, sideOf, startRedeploy,
 } from './game/engine'
 import { clearSave, loadGame, saveGame } from './game/save'
-import { RACE_BY_ID, POWER_BY_ID } from './game/abilities'
+import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities'
 import type { GameState } from './game/types'
 import { MapView } from './ui/MapView'
+import { FactionIcon } from './ui/mapArt'
 import { Setup, type SetupResult } from './ui/Setup'
 import { Tutorial } from './ui/Tutorial'
 import { PLAYER_COLORS, TERRAIN_LABEL } from './ui/theme'
@@ -215,7 +216,13 @@ export default function App() {
           </h2>
           {activeFaction ? (
             <div className="faction">
-              <div className="ftitle">{factionLabel(activeFaction)}</div>
+              <div className="ftitle">
+                {factionLabel(activeFaction)}
+                <span className={`sidetag ${sideOf(activeFaction)}`}>
+                  <FactionIcon side={sideOf(activeFaction)} size={13} />
+                  {SIDE_LABEL[sideOf(activeFaction)]}
+                </span>
+              </div>
               <div className="fstats">
                 <span>En mano <strong>{activeFaction.hand}</strong></span>
                 <span>Regiones <strong>{owned.length}</strong></span>
@@ -231,6 +238,11 @@ export default function App() {
             <div className="faction decline">
               <div className="ftitle">{factionLabel(declineFaction)} · en declive</div>
               <div className="fstats"><span>Regiones <strong>{regionsOf(state, declineFaction.uid).length}</strong></span></div>
+            </div>
+          )}
+          {activeFaction && plunderThisTurn(state, activeFaction).length > 0 && (
+            <div className="plunder">
+              ⚔ Botín de facción este turno: <strong>+{plunderThisTurn(state, activeFaction).length}</strong> 🪙
             </div>
           )}
           <div className="preview">Si acabas ahora: <strong>{preview.total}</strong> 🪙</div>
@@ -250,7 +262,9 @@ export default function App() {
                     disabled={!affordable}
                     onClick={() => { act((s) => selectCombo(s, i), true); setSelected(null) }}>
                     <div className="chead">
-                      <span className="cname" style={{ color: race?.color }}>{power?.name} {race?.name}</span>
+                      <span className="cname" style={{ color: race?.color }}>
+                        <FactionIcon side={RACE_SIDE[c.raceId] ?? 'neutral'} size={12} /> {power?.name} {race?.name}
+                      </span>
                       <span className="ctok">{comboTokens(c)}</span>
                     </div>
                     <div className="cbody"><em>{race?.text}</em><em>{power?.text}</em></div>
@@ -280,6 +294,14 @@ export default function App() {
                   {selRegion.coastal && ' · ⚓'}
                   {selRegion.landmark && ` · ★ ${selRegion.landmark}`}
                 </div>
+                {selRegion.faction && selRegion.faction !== 'neutral' && (
+                  <div className={`smeta banner ${selRegion.faction}`}>
+                    <FactionIcon side={selRegion.faction} size={14} />
+                    Territorio de la {SIDE_LABEL[selRegion.faction]}
+                  </div>
+                )}
+                {selInfo.homeland && <div className="bonusline home">🏳 Tu propia tierra: cuesta 1 ficha menos</div>}
+                {selInfo.plunder && <div className="bonusline loot">⚔ Botín: +1 moneda al conquistarla</div>}
                 <div className="smeta">Defensa: <strong>{defenseOf(state, selRegion.id)}</strong></div>
                 {selInfo.reachable ? (
                   <>
@@ -449,6 +471,14 @@ export default function App() {
               <li><strong>Puntuación.</strong> 1 moneda por región ocupada más las bonificaciones.</li>
               <li><strong>Declive.</strong> Conserva 1 ficha por región y sigue puntuando; tu raza en declive anterior desaparece.</li>
             </ol>
+            <h3>Alianza y Horda</h3>
+            <ul className="legend">
+              <li>Cada raza lucha bajo una bandera. Las razas <b>neutrales</b> (Múrlocs, Pandaren, Naga, Dragón Negro) son mercenarias.</li>
+              <li>🏳 Conquistar una región <b>de tu propia bandera</b> cuesta <b>1 ficha menos</b>: los tuyos se te unen.</li>
+              <li>⚔ Conquistar una región <b>de la bandera enemiga</b> da <b>+1 moneda</b> de botín ese turno. Las razas neutrales saquean a los dos bandos.</li>
+              <li>Los <b>Orcos</b> cobran el botín <b>doble</b> sobre territorio de la Alianza.</li>
+            </ul>
+
             <h3>Controles</h3>
             <ul className="legend">
               <li>🔍 Rueda del ratón o pellizco para <b>zoom</b>; arrastra para mover el mapa</li>

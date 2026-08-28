@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, ownerPlayer } from '../game/engine'
 import { LOST_TRIBE, type GameState, type RegionData } from '../game/types'
 import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL } from './theme'
-import { Badge, badgesFor, terrainDecor } from './mapArt'
+import { Badge, FactionMark, badgesFor, terrainDecor } from './mapArt'
 
 interface Props {
   state: GameState
@@ -227,9 +227,12 @@ export function MapView({
                 className={`region${isTarget ? ' target' : ''}${isSelected ? ' selected' : ''}${canMark ? ' markable' : ''}${dimmed ? ' dimmed' : ''}${spot?.has(r.id) ? ' spot' : ''}`}
                 onClick={() => clickRegion(r.id)}
               >
-                <title>{`${r.name} — ${TERRAIN_LABEL[r.terrain]}${r.mountain ? ' (montaña, +1 def)' : ''}${r.coastal ? ' · costera ⚓' : ''}${r.landmark ? ` · ${r.landmark}` : ''}\nDefensa: ${defenseOf(state, r.id)}${targets[r.id] ? `\nCoste de conquista: ${targets[r.id].cost}` : ''}`}</title>
+                <title>{`${r.name} — ${TERRAIN_LABEL[r.terrain]}${r.faction && r.faction !== 'neutral' ? ` · ${r.faction === 'alliance' ? 'Alianza' : 'Horda'}` : ''}${r.mountain ? ' (montaña, +1 def)' : ''}${r.coastal ? ' · costera ⚓' : ''}${r.landmark ? ` · ${r.landmark}` : ''}\nDefensa: ${defenseOf(state, r.id)}${targets[r.id] ? `\nCoste de conquista: ${targets[r.id].cost}` : ''}`}</title>
                 <path d={roundedPath(r.polygon)} fill={TERRAIN_COLORS[r.terrain]} filter="url(#shore)" />
                 <g clipPath={`url(#cp-${r.id})`}>
+                  {r.faction && r.faction !== 'neutral' && (
+                    <FactionMark side={r.faction} x={r.center[0] - 15} y={r.center[1] + 11} />
+                  )}
                   {terrainDecor(r)}
                   {/* ownership reads as a coloured band hugging the border, so the
                       terrain underneath stays identifiable at a glance */}

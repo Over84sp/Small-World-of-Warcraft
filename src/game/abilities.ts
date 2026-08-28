@@ -1,14 +1,44 @@
-import type { Ability, AbilityContext } from './types'
+import type { Ability, AbilityContext, Side } from './types'
 import type { RegionData } from './types'
+import { REGIONS } from './mapData.generated'
+
+const REGION_LOOKUP: Record<string, RegionData> = Object.fromEntries(REGIONS.map((r) => [r.id, r]))
+
+/**
+ * Which banner each race fights under. Neutral races are mercenaries: they have
+ * no homeland discount but they can raid *both* factions for plunder.
+ */
+export const RACE_SIDE: Record<string, Side> = {
+  humans: 'alliance', dwarves: 'alliance', nightelves: 'alliance',
+  gnomes: 'alliance', worgen: 'alliance', draenei: 'alliance',
+  orcs: 'horde', trolls: 'horde', tauren: 'horde',
+  forsaken: 'horde', goblins: 'horde', bloodelves: 'horde',
+  murlocs: 'neutral', pandaren: 'neutral', naga: 'neutral', dragonmaw: 'neutral',
+}
+
+export const SIDE_LABEL: Record<Side, string> = {
+  alliance: 'Alianza', horde: 'Horda', neutral: 'Neutral',
+}
+
+/** plunder is paid for conquering the enemy banner; mercenaries loot everyone */
+export function isEnemyRegion(side: Side, region: RegionData): boolean {
+  if (!region.faction || region.faction === 'neutral') return false
+  if (side === 'neutral') return true
+  return region.faction !== side
+}
 
 const count = (ctx: AbilityContext, fn: (r: RegionData) => boolean) => ctx.owned.filter(fn).length
 
 export const RACES: Ability[] = [
   {
     id: 'orcs', name: 'Orcos', tokens: 5, color: '#7ba05b',
-    text: 'Gana 1 moneda extra por cada región que conquiste este turno.',
-    scoreBonus: (ctx) =>
-      ctx.faction.inDecline ? 0 : ctx.state.turn.conquered.length,
+    text: 'Botín doble: 1 moneda extra más por cada región de la Alianza que conquiste este turno.',
+    scoreBonus: (ctx) => {
+      if (ctx.faction.inDecline) return 0
+      return ctx.state.turn.conquered.filter(
+        (id) => REGION_LOOKUP[id]?.faction === 'alliance',
+      ).length
+    },
   },
   {
     id: 'humans', name: 'Humanos', tokens: 5, color: '#c8b9a0',

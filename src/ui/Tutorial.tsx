@@ -196,12 +196,18 @@ export const STEPS: Step[] = [
   },
   {
     id: 'combat',
-    title: 'Atacar a un rival',
+    title: 'Atacar a un rival (y tu propia bandera)',
     body: (
       <>
         <p>La Horda se ha instalado en <strong>Ashenvale</strong> con <strong>2 fichas</strong>.
           Cuestan lo mismo que cualquier defensor: +1 cada una.</p>
-        <Cost parts={[['base', 2], ['2 defensores', 2]]} total={4} />
+        <p>Pero Ashenvale es <strong>territorio de la Alianza</strong> y tú juegas con
+          <strong> Humanos</strong>, que son de la Alianza: los tuyos se te unen y la conquista
+          cuesta <strong>1 ficha menos</strong>. Es tu <strong>patria</strong>.</p>
+        <Cost parts={[['base', 2], ['2 defensores', 2], ['tu bandera', -1]]} total={3} />
+        <p>Al revés funciona igual de bien: <strong>Durotar</strong> y <strong>Azshara</strong>,
+          que ya has tomado, son de la <strong>Horda</strong>, y saquear la bandera contraria
+          te dará <strong>+1 moneda cada una</strong> al puntuar.</p>
         <p>Al expulsarlo, el defensor <strong>pierde 1 ficha para siempre</strong> y recupera el resto,
           que volverá al tablero al final de tu turno. Por eso atacar desgasta a los dos.</p>
         <p className="doit">👉 Expulsa a la Horda de <strong>Ashenvale</strong>.</p>
@@ -273,6 +279,9 @@ export const STEPS: Step[] = [
         <p>Encima se aplican los bonos de tu combinación: <strong>Mercader</strong> da +1 por región,
           o sea que aquí cobras el doble. Los <strong>Humanos</strong> darían +1 por llanura,
           pero de momento no has ocupado ninguna.</p>
+        <p>Y ahí está el <strong>botín de facción</strong>: +1 por cada región de la Horda
+          (Durotar y Azshara) que has tomado <em>este turno</em>. Solo se cobra el turno de la
+          conquista, así que atacar al bando contrario premia el ataque, no la ocupación.</p>
         <p>Por eso la combinación importa tanto: dos jugadores con las mismas regiones
           pueden cobrar muy distinto.</p>
       </>

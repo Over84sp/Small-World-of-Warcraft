@@ -234,6 +234,7 @@ export const REGIONS: RegionData[] = [
   "name": "Mount Hyjal",
   "terrain": "mountains",
   "landmass": "kalimdor",
+  "faction": "neutral",
   "landmark": "Nordrassil",
   "mountain": true,
   "coastal": true,
@@ -324,7 +325,7 @@ export const REGIONS: RegionData[] = [
   "name": "Ashenvale",
   "terrain": "forest",
   "landmass": "kalimdor",
-  "faction": "neutral",
+  "faction": "alliance",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -415,6 +416,7 @@ export const REGIONS: RegionData[] = [
   "name": "Stonetalon Mountains",
   "terrain": "mountains",
   "landmass": "kalimdor",
+  "faction": "horde",
   "mountain": true,
   "coastal": true,
   "polygon": [
@@ -606,6 +608,7 @@ export const REGIONS: RegionData[] = [
   "name": "Southern Barrens",
   "terrain": "fields",
   "landmass": "kalimdor",
+  "faction": "horde",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -698,6 +701,7 @@ export const REGIONS: RegionData[] = [
   "name": "Feralas",
   "terrain": "forest",
   "landmass": "kalimdor",
+  "faction": "alliance",
   "lostTribe": true,
   "mountain": false,
   "coastal": true,
@@ -748,6 +752,7 @@ export const REGIONS: RegionData[] = [
   "name": "Thousand Needles",
   "terrain": "hills",
   "landmass": "kalimdor",
+  "faction": "horde",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -888,6 +893,7 @@ export const REGIONS: RegionData[] = [
   "name": "Tanaris",
   "terrain": "wasteland",
   "landmass": "kalimdor",
+  "faction": "neutral",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -991,6 +997,7 @@ export const REGIONS: RegionData[] = [
   "name": "Isle of Quel'Danas",
   "terrain": "fields",
   "landmass": "quel-danas",
+  "faction": "neutral",
   "landmark": "Sunwell",
   "lostTribe": true,
   "mountain": false,
@@ -1126,6 +1133,7 @@ export const REGIONS: RegionData[] = [
   "name": "Ghostlands",
   "terrain": "forest",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "lostTribe": true,
   "mountain": false,
   "coastal": true,
@@ -1175,6 +1183,7 @@ export const REGIONS: RegionData[] = [
   "name": "Western Plaguelands",
   "terrain": "fields",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "mountain": false,
   "coastal": false,
   "polygon": [
@@ -1216,6 +1225,7 @@ export const REGIONS: RegionData[] = [
   "name": "Eastern Plaguelands",
   "terrain": "wasteland",
   "landmass": "eastern-kingdoms",
+  "faction": "neutral",
   "lostTribe": true,
   "mountain": false,
   "coastal": true,
@@ -1356,6 +1366,7 @@ export const REGIONS: RegionData[] = [
   "name": "Hillsbrad Foothills",
   "terrain": "fields",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -1400,6 +1411,7 @@ export const REGIONS: RegionData[] = [
   "name": "The Hinterlands",
   "terrain": "forest",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "lostTribe": true,
   "mountain": false,
   "coastal": true,
@@ -1449,6 +1461,7 @@ export const REGIONS: RegionData[] = [
   "name": "Arathi Highlands",
   "terrain": "hills",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "mountain": false,
   "coastal": false,
   "polygon": [
@@ -1544,6 +1557,7 @@ export const REGIONS: RegionData[] = [
   "name": "Twilight Highlands",
   "terrain": "mountains",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "mountain": true,
   "coastal": true,
   "polygon": [
@@ -1592,6 +1606,7 @@ export const REGIONS: RegionData[] = [
   "name": "Wetlands",
   "terrain": "swamp",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -1636,6 +1651,7 @@ export const REGIONS: RegionData[] = [
   "name": "Loch Modan",
   "terrain": "hills",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "mountain": false,
   "coastal": false,
   "polygon": [
@@ -1919,6 +1935,7 @@ export const REGIONS: RegionData[] = [
   "name": "Westfall",
   "terrain": "fields",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -1957,6 +1974,7 @@ export const REGIONS: RegionData[] = [
   "name": "Redridge Mountains",
   "terrain": "mountains",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "mountain": true,
   "coastal": false,
   "polygon": [
@@ -2045,6 +2063,7 @@ export const REGIONS: RegionData[] = [
   "name": "Duskwood",
   "terrain": "forest",
   "landmass": "eastern-kingdoms",
+  "faction": "alliance",
   "lostTribe": true,
   "mountain": false,
   "coastal": true,
@@ -2095,6 +2114,7 @@ export const REGIONS: RegionData[] = [
   "name": "Swamp of Sorrows",
   "terrain": "swamp",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -2187,6 +2207,7 @@ export const REGIONS: RegionData[] = [
   "name": "Northern Stranglethorn",
   "terrain": "forest",
   "landmass": "eastern-kingdoms",
+  "faction": "horde",
   "mountain": false,
   "coastal": true,
   "polygon": [
@@ -2243,6 +2264,7 @@ export const REGIONS: RegionData[] = [
   "name": "The Cape of Stranglethorn",
   "terrain": "swamp",
   "landmass": "eastern-kingdoms",
+  "faction": "neutral",
   "landmark": "Booty Bay",
   "mountain": false,
   "coastal": true,
@@ -2281,6 +2303,7 @@ export const REGIONS: RegionData[] = [
   "name": "Tol Barad",
   "terrain": "fields",
   "landmass": "tolbarad",
+  "faction": "neutral",
   "landmark": "Baradin Hold",
   "mountain": false,
   "coastal": true,

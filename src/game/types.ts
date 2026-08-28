@@ -1,3 +1,5 @@
+export type Side = 'alliance' | 'horde' | 'neutral'
+
 export type Terrain = 'fields' | 'forest' | 'hills' | 'mountains' | 'swamp' | 'wasteland'
 
 export interface RegionData {
@@ -5,7 +7,7 @@ export interface RegionData {
   name: string
   terrain: Terrain
   landmass: string
-  faction?: string
+  faction?: Side
   landmark?: string
   lostTribe?: boolean
   mountain: boolean

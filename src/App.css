@@ -361,3 +361,26 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: #16262c; border: 1px solid #2f6b7a; color: #b8e4ee;
   border-radius: 9px; padding: 8px 12px; font-size: 12.5px;
 }
+
+/* ------------------------------------------------- v4: Alianza y Horda */
+.sidetag {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .7px;
+  padding: 2px 8px; border-radius: 20px; font-weight: 700;
+}
+.sidetag.alliance { background: #16304d; color: #9ecdff; border: 1px solid #2d5f96; }
+.sidetag.horde { background: #40201a; color: #ffab8f; border: 1px solid #8a4230; }
+.sidetag.neutral { display: none; }
+.ftitle { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.smeta.banner { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-weight: 600; }
+.smeta.banner.alliance { color: #9ecdff; }
+.smeta.banner.horde { color: #ffab8f; }
+.bonusline { margin-top: 5px; font-size: 12.5px; border-radius: 7px; padding: 5px 9px; }
+.bonusline.home { background: #16304d; color: #b9dbff; }
+.bonusline.loot { background: #3d2318; color: #ffc9a8; }
+.plunder {
+  background: #3d2318; border: 1px solid #8a4230; color: #ffc9a8;
+  border-radius: 8px; padding: 6px 10px; font-size: 12.5px; margin-bottom: 7px;
+}
+.plunder strong { color: #ffd9a8; font-size: 15px; }
+.cname { display: inline-flex; align-items: center; gap: 4px; }

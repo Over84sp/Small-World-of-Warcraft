@@ -3,6 +3,8 @@
 
 export type Terrain = 'fields' | 'forest' | 'hills' | 'mountains' | 'swamp' | 'wasteland'
 
+export type Side = 'alliance' | 'horde' | 'neutral'
+
 export interface SeedDef {
   id: string
   name: string
@@ -13,7 +15,7 @@ export interface SeedDef {
   landmark?: string
   /** starts guarded by a Lost Tribe token */
   lostTribe?: boolean
-  faction?: 'alliance' | 'horde' | 'neutral'
+  faction?: Side
 }
 
 export interface LandmassDef {
@@ -49,21 +51,21 @@ export const LANDMASSES: LandmassDef[] = [
       { id: 'moonglade', name: 'Moonglade', terrain: 'forest', x: 252, y: 122, faction: 'neutral', landmark: 'Nighthaven' },
       { id: 'winterspring', name: 'Winterspring', terrain: 'mountains', x: 300, y: 168, lostTribe: true },
       { id: 'felwood', name: 'Felwood', terrain: 'forest', x: 214, y: 200, lostTribe: true },
-      { id: 'hyjal', name: 'Mount Hyjal', terrain: 'mountains', x: 274, y: 226, landmark: 'Nordrassil' },
+      { id: 'hyjal', name: 'Mount Hyjal', terrain: 'mountains', x: 274, y: 226, faction: 'neutral', landmark: 'Nordrassil' },
       { id: 'azshara', name: 'Azshara', terrain: 'hills', x: 322, y: 268, faction: 'horde' },
-      { id: 'ashenvale', name: 'Ashenvale', terrain: 'forest', x: 216, y: 274, faction: 'neutral' },
+      { id: 'ashenvale', name: 'Ashenvale', terrain: 'forest', x: 216, y: 274, faction: 'alliance' },
       { id: 'durotar', name: 'Durotar', terrain: 'wasteland', x: 318, y: 334, faction: 'horde', landmark: 'Orgrimmar' },
-      { id: 'stonetalon', name: 'Stonetalon Mountains', terrain: 'mountains', x: 178, y: 330 },
+      { id: 'stonetalon', name: 'Stonetalon Mountains', terrain: 'mountains', x: 178, y: 330, faction: 'horde' },
       { id: 'nbarrens', name: 'Northern Barrens', terrain: 'fields', x: 262, y: 344, faction: 'horde' },
       { id: 'desolace', name: 'Desolace', terrain: 'wasteland', x: 158, y: 400, lostTribe: true },
       { id: 'mulgore', name: 'Mulgore', terrain: 'fields', x: 232, y: 418, faction: 'horde', landmark: 'Thunder Bluff' },
-      { id: 'sbarrens', name: 'Southern Barrens', terrain: 'fields', x: 296, y: 414 },
+      { id: 'sbarrens', name: 'Southern Barrens', terrain: 'fields', x: 296, y: 414, faction: 'horde' },
       { id: 'dustwallow', name: 'Dustwallow Marsh', terrain: 'swamp', x: 320, y: 470, faction: 'alliance' },
-      { id: 'feralas', name: 'Feralas', terrain: 'forest', x: 176, y: 476, lostTribe: true },
-      { id: 'thousandneedles', name: 'Thousand Needles', terrain: 'hills', x: 264, y: 500 },
+      { id: 'feralas', name: 'Feralas', terrain: 'forest', x: 176, y: 476, lostTribe: true, faction: 'alliance' },
+      { id: 'thousandneedles', name: 'Thousand Needles', terrain: 'hills', x: 264, y: 500, faction: 'horde' },
       { id: 'silithus', name: 'Silithus', terrain: 'wasteland', x: 166, y: 548, landmark: 'Ahn\u2019Qiraj' },
       { id: 'ungoro', name: "Un'Goro Crater", terrain: 'forest', x: 224, y: 566, lostTribe: true },
-      { id: 'tanaris', name: 'Tanaris', terrain: 'wasteland', x: 274, y: 618 },
+      { id: 'tanaris', name: 'Tanaris', terrain: 'wasteland', x: 274, y: 618, faction: 'neutral' },
       { id: 'uldum', name: 'Uldum', terrain: 'wasteland', x: 216, y: 668, landmark: 'Halls of Origination' },
     ],
   },
@@ -74,7 +76,7 @@ export const LANDMASSES: LandmassDef[] = [
       [800, 72], [834, 66], [856, 84], [850, 110], [820, 120], [796, 102],
     ],
     seeds: [
-      { id: 'queldanas', name: "Isle of Quel'Danas", terrain: 'fields', x: 826, y: 92, landmark: 'Sunwell', lostTribe: true },
+      { id: 'queldanas', name: "Isle of Quel'Danas", terrain: 'fields', x: 826, y: 92, faction: 'neutral', landmark: 'Sunwell', lostTribe: true },
     ],
   },
   {
@@ -91,31 +93,31 @@ export const LANDMASSES: LandmassDef[] = [
     seeds: [
       { id: 'tirisfal', name: 'Tirisfal Glades', terrain: 'forest', x: 706, y: 140, faction: 'horde', landmark: 'Undercity' },
       { id: 'eversong', name: 'Eversong Woods', terrain: 'forest', x: 796, y: 136, faction: 'horde', landmark: 'Silvermoon' },
-      { id: 'ghostlands', name: 'Ghostlands', terrain: 'forest', x: 806, y: 194, lostTribe: true },
-      { id: 'wplaguelands', name: 'Western Plaguelands', terrain: 'fields', x: 742, y: 190 },
-      { id: 'eplaguelands', name: 'Eastern Plaguelands', terrain: 'wasteland', x: 812, y: 250, lostTribe: true },
+      { id: 'ghostlands', name: 'Ghostlands', terrain: 'forest', x: 806, y: 194, lostTribe: true, faction: 'horde' },
+      { id: 'wplaguelands', name: 'Western Plaguelands', terrain: 'fields', x: 742, y: 190, faction: 'alliance' },
+      { id: 'eplaguelands', name: 'Eastern Plaguelands', terrain: 'wasteland', x: 812, y: 250, lostTribe: true, faction: 'neutral' },
       { id: 'silverpine', name: 'Silverpine Forest', terrain: 'forest', x: 682, y: 208, faction: 'horde' },
       { id: 'alterac', name: 'Alterac Mountains', terrain: 'mountains', x: 744, y: 262 },
-      { id: 'hillsbrad', name: 'Hillsbrad Foothills', terrain: 'fields', x: 686, y: 282 },
-      { id: 'hinterlands', name: 'The Hinterlands', terrain: 'forest', x: 818, y: 306, lostTribe: true },
-      { id: 'arathi', name: 'Arathi Highlands', terrain: 'hills', x: 748, y: 330 },
+      { id: 'hillsbrad', name: 'Hillsbrad Foothills', terrain: 'fields', x: 686, y: 282, faction: 'horde' },
+      { id: 'hinterlands', name: 'The Hinterlands', terrain: 'forest', x: 818, y: 306, lostTribe: true, faction: 'alliance' },
+      { id: 'arathi', name: 'Arathi Highlands', terrain: 'hills', x: 748, y: 330, faction: 'horde' },
       { id: 'gilneas', name: 'Gilneas', terrain: 'forest', x: 654, y: 330, faction: 'alliance' },
-      { id: 'twilighthighlands', name: 'Twilight Highlands', terrain: 'mountains', x: 820, y: 380 },
-      { id: 'wetlands', name: 'Wetlands', terrain: 'swamp', x: 692, y: 388 },
-      { id: 'lochmodan', name: 'Loch Modan', terrain: 'hills', x: 762, y: 418 },
+      { id: 'twilighthighlands', name: 'Twilight Highlands', terrain: 'mountains', x: 820, y: 380, faction: 'horde' },
+      { id: 'wetlands', name: 'Wetlands', terrain: 'swamp', x: 692, y: 388, faction: 'alliance' },
+      { id: 'lochmodan', name: 'Loch Modan', terrain: 'hills', x: 762, y: 418, faction: 'alliance' },
       { id: 'dunmorogh', name: 'Dun Morogh', terrain: 'mountains', x: 682, y: 452, faction: 'alliance', landmark: 'Ironforge' },
       { id: 'badlands', name: 'Badlands', terrain: 'wasteland', x: 790, y: 452, lostTribe: true },
       { id: 'searinggorge', name: 'Searing Gorge', terrain: 'mountains', x: 744, y: 488 },
       { id: 'burningsteppes', name: 'Burning Steppes', terrain: 'mountains', x: 800, y: 520, landmark: 'Blackrock Mountain' },
       { id: 'elwynn', name: 'Elwynn Forest', terrain: 'forest', x: 688, y: 528, faction: 'alliance', landmark: 'Stormwind' },
-      { id: 'westfall', name: 'Westfall', terrain: 'fields', x: 656, y: 574 },
-      { id: 'redridge', name: 'Redridge Mountains', terrain: 'mountains', x: 756, y: 560 },
+      { id: 'westfall', name: 'Westfall', terrain: 'fields', x: 656, y: 574, faction: 'alliance' },
+      { id: 'redridge', name: 'Redridge Mountains', terrain: 'mountains', x: 756, y: 560, faction: 'alliance' },
       { id: 'deadwind', name: 'Deadwind Pass', terrain: 'hills', x: 762, y: 606, landmark: 'Karazhan' },
-      { id: 'duskwood', name: 'Duskwood', terrain: 'forest', x: 692, y: 616, lostTribe: true },
-      { id: 'swampofsorrows', name: 'Swamp of Sorrows', terrain: 'swamp', x: 816, y: 596 },
+      { id: 'duskwood', name: 'Duskwood', terrain: 'forest', x: 692, y: 616, lostTribe: true, faction: 'alliance' },
+      { id: 'swampofsorrows', name: 'Swamp of Sorrows', terrain: 'swamp', x: 816, y: 596, faction: 'horde' },
       { id: 'blastedlands', name: 'Blasted Lands', terrain: 'wasteland', x: 808, y: 650, landmark: 'The Dark Portal' },
-      { id: 'nstranglethorn', name: 'Northern Stranglethorn', terrain: 'forest', x: 716, y: 682 },
-      { id: 'capestranglethorn', name: 'The Cape of Stranglethorn', terrain: 'swamp', x: 712, y: 736, landmark: 'Booty Bay' },
+      { id: 'nstranglethorn', name: 'Northern Stranglethorn', terrain: 'forest', x: 716, y: 682, faction: 'horde' },
+      { id: 'capestranglethorn', name: 'The Cape of Stranglethorn', terrain: 'swamp', x: 712, y: 736, faction: 'neutral', landmark: 'Booty Bay' },
     ],
   },
   {
@@ -125,7 +127,7 @@ export const LANDMASSES: LandmassDef[] = [
       [590, 396], [618, 388], [636, 406], [628, 430], [600, 436], [582, 418],
     ],
     seeds: [
-      { id: 'tolbarad', name: 'Tol Barad', terrain: 'fields', x: 609, y: 412, landmark: 'Baradin Hold' },
+      { id: 'tolbarad', name: 'Tol Barad', terrain: 'fields', x: 609, y: 412, faction: 'neutral', landmark: 'Baradin Hold' },
     ],
   },
   {
@@ -135,7 +137,7 @@ export const LANDMASSES: LandmassDef[] = [
       [452, 736], [486, 728], [508, 748], [500, 776], [468, 786], [444, 766],
     ],
     seeds: [
-      { id: 'kezan', name: 'Kezan', terrain: 'hills', x: 476, y: 756, landmark: 'Undermine', faction: 'neutral' },
+      { id: 'kezan', name: 'Kezan', terrain: 'hills', x: 476, y: 756, faction: 'neutral', landmark: 'Undermine' },
     ],
   },
   {

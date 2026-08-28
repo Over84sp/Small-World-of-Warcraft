@@ -6,7 +6,7 @@
  * (and Android renders ⚓ and ★ at wildly different weights), so they are all
  * real SVG paths now, each on a coloured disc so it reads on any terrain.
  */
-import type { RegionData, Terrain } from '../game/types'
+import type { RegionData, Side, Terrain } from '../game/types'
 
 /* ------------------------------------------------------------- sampling */
 function hash(str: string): number {
@@ -244,4 +244,55 @@ export function badgesFor(
   if (st.fortress > 0) out.push('fortress')
   if (st.hero) out.push('hero')
   return out
+}
+
+/* ------------------------------------------------- faction emblems */
+/**
+ * Our own emblems, not Blizzard's: a shield for the Alliance and a double
+ * bladed axe head for the Horde. Drawn as a small solid badge in the bottom
+ * left corner, away from the rule badges (top row) and the sea-landing anchor
+ * (right), so nothing important gets covered.
+ */
+const EMBLEM: Record<'alliance' | 'horde', { glyph: React.ReactNode; fill: string; ring: string }> = {
+  alliance: {
+    fill: '#2f68b3',
+    ring: '#bcdcff',
+    glyph: (
+      <path d="M0 -6.6 L5.6 -4.2 V1.2 C5.6 5.4 2.9 8.4 0 9.6 C-2.9 8.4 -5.6 5.4 -5.6 1.2 V-4.2 Z
+               M0 -4.2 L-3.4 -2.8 V1.1 C-3.4 3.9 -1.8 6 0 6.9 C1.8 6 3.4 3.9 3.4 1.1 V-2.8 Z" />
+    ),
+  },
+  horde: {
+    fill: '#a8391f',
+    ring: '#ffc7ad',
+    glyph: (
+      <path d="M-1.1 -7.4 C3.6 -6.2 7.4 -2.2 8 3.4 C8.3 6.6 6.4 9 3.2 9.8 L1.7 6.3
+               C3.8 5.4 4.7 3.6 4.4 1.2 C4 -2 1.7 -4.4 -1.1 -5.2 Z
+               M1.1 -7.4 C-3.6 -6.2 -7.4 -2.2 -8 3.4 C-8.3 6.6 -6.4 9 -3.2 9.8 L-1.7 6.3
+               C-3.8 5.4 -4.7 3.6 -4.4 1.2 C-4 -2 -1.7 -4.4 1.1 -5.2 Z
+               M0 -3 L2.3 3.4 H-2.3 Z" />
+    ),
+  },
+}
+
+export function FactionMark({ side, x, y, r = 5.6 }: { side: Side; x: number; y: number; r?: number }) {
+  if (side === 'neutral') return null
+  const e = EMBLEM[side]
+  return (
+    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <circle r={r} fill={e.fill} fillOpacity={0.95} stroke="#0b1016" strokeWidth={0.9} />
+      <circle r={r} fill="none" stroke={e.ring} strokeWidth={0.8} strokeOpacity={0.85} />
+      <g transform={`scale(${r / 9.6})`} fill={e.ring}>{e.glyph}</g>
+    </g>
+  )
+}
+
+/** inline version for legends and side panels */
+export function FactionIcon({ side, size = 16 }: { side: Side; size?: number }) {
+  if (side === 'neutral') return null
+  return (
+    <svg width={size} height={size} viewBox="-8 -8 16 16" style={{ verticalAlign: 'middle' }}>
+      <FactionMark side={side} x={0} y={0} r={7.4} />
+    </svg>
+  )
 }

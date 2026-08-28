@@ -42,11 +42,11 @@ s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'berserk',inDeclin
 s.players[1].activeUid=HORDE
 setR(s,'ashenvale',HORDE,2)
 chk(f().hand===9,`tras Felwood quedan ${f().hand} fichas (12-3 = 9)`)
-i=conquestCost(s,'ashenvale'); chk(i.reachable&&i.cost===4,`Ashenvale con 2 defensores, coste ${i.cost} (esperado 4)`)
+i=conquestCost(s,'ashenvale'); chk(i.reachable&&i.cost===3&&i.homeland===true,`Ashenvale con 2 defensores en patria de la Alianza, coste ${i.cost} (esperado 3 = 2+2-1)`)
 chk(conquer(s,'ashenvale').ok,'expulsa a la Horda')
 chk(s.turn.pendingReturns[HORDE]===1,'el defensor recupera 1 ficha (pierde 1)')
 
-chk(f().hand===5,`tras Ashenvale quedan ${f().hand} fichas (9-4 = 5)`)
+chk(f().hand===6,`tras Ashenvale quedan ${f().hand} fichas (9-3 = 6)`)
 
 // step: dice  (staging deliberado y anunciado)
 f().hand=3
@@ -63,6 +63,7 @@ chk(f().hand===0,'reparte todas las fichas')
 // step: score
 const sc=scoreFor(s,0)
 chk(sc.total>0,`puntúa ${sc.total} monedas -> ${sc.detail.join(' | ')}`)
+chk(sc.detail.some(d=>d.includes('Botín de facción: +2')),'el botín de Durotar y Azshara (Horda) aparece en la puntuación')
 
 // step: decline
 goIntoDecline(s)

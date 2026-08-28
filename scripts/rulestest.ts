@@ -1,7 +1,7 @@
 /** Regresión de las reglas que estaban rotas. */
 import {
   beginTurn, conquer, conquestCost, createGame, diplomacyOptions, endTurn,
-  needsDiplomacy, selectCombo, setPeace, startRedeploy,
+  needsDiplomacy, plunderThisTurn, scoreFor, selectCombo, setPeace, startRedeploy,
 } from '../src/game/engine'
 import type { GameState } from '../src/game/types'
 
@@ -85,6 +85,82 @@ console.log('\n[3] La paz dura solo hasta tu siguiente turno')
   s.current = 0
   beginTurn(s)
   chk(s.players[0].peaceWith === null, 'al empezar tu turno se borra el tratado anterior')
+}
+
+/* ---------- 4. Alianza vs Horda ---------- */
+console.log('\n[4] Alianza vs Horda: patria, botín y neutrales')
+
+/** Prepara una partida con una facción activa concreta y mano infinita. */
+function withRace(raceId: string, powerId = 'merchant') {
+  const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }], 7, 'kalimdor')
+  s.phase = 'pick'
+  s.tray[0] = { raceId, powerId, bonusCoins: 0 }
+  selectCombo(s, 0)
+  const f = s.factions[s.players[0].activeUid!]
+  f.hand = 40
+  return { s, f }
+}
+
+{
+  // durotar (horda) vs darkshore (alianza), ambas vacías, mismo terreno base
+  const { s } = withRace('orcs')                 // orcos = horda
+  const home = conquestCost(s, 'durotar')
+  const enemy = conquestCost(s, 'darkshore')   // ambas por desembarco: 2 base + 1 mar
+  chk(home.homeland === true, 'durotar es patria de los Orcos')
+  chk(home.cost === enemy.cost - 1, `la patria cuesta 1 ficha menos que el territorio enemigo (${home.cost} vs ${enemy.cost})`)
+  chk(enemy.homeland !== true && enemy.plunder === true, 'darkshore es territorio saqueable de la Alianza')
+  chk(enemy.cost === 3, `territorio enemigo vacío: 2 + 1 de desembarco (cuesta ${enemy.cost})`)
+}
+{
+  // la patria nunca puede bajar el coste por debajo de 1
+  const { s } = withRace('orcs')
+  s.regions['durotar'] = { owner: null, tokens: 0, fortress: 0, hero: false }
+  chk(conquestCost(s, 'durotar').cost >= 1, 'el descuento de patria nunca deja el coste en 0')
+}
+{
+  // botín: +1 moneda por región enemiga conquistada este turno
+  const { s, f } = withRace('humans')            // humanos = alianza
+  conquer(s, 'durotar')                          // horda -> botín
+  conquer(s, 'nbarrens')                         // horda -> botín
+  conquer(s, 'sbarrens')                         // horda -> botín
+  chk(plunderThisTurn(s, f).length === 3, `3 regiones saqueadas (${plunderThisTurn(s, f).length})`)
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some((l) => l.includes('Botín de facción: +3')), 'la puntuación detalla el botín: ' +
+    (sc.detail.find((l) => l.includes('Botín'))?.trim() ?? '(no aparece)'))
+  const conquered = [...s.turn.conquered]
+  s.turn.conquered = []                          // mismo tablero, sin haberlas tomado este turno
+  const noLoot = scoreFor(s, 0).total
+  s.turn.conquered = conquered
+  chk(sc.total - noLoot === 3, `el botín aporta exactamente +3 al total (${noLoot} -> ${sc.total})`)
+}
+{
+  // el botín solo cuenta el turno en el que conquistas
+  const { s, f } = withRace('humans')
+  conquer(s, 'durotar')
+  startRedeploy(s); endTurn(s)
+  while (s.current !== 0) endTurn(s)
+  chk(plunderThisTurn(s, f).length === 0, 'el botín no se cobra dos veces en turnos siguientes')
+}
+{
+  // orcos: botín doble contra la Alianza, normal contra el resto
+  const { s, f } = withRace('orcs')
+  conquer(s, 'darkshore')                        // alianza
+  const sc = scoreFor(s, 0)
+  const conquered2 = [...s.turn.conquered]
+  s.turn.conquered = []
+  const base = scoreFor(s, 0).total
+  s.turn.conquered = conquered2
+  chk(sc.total - base === 2, `los Orcos cobran doble sobre la Alianza: +2 por una región (${base} -> ${sc.total})`)
+  chk(plunderThisTurn(s, f).length === 1, 'plunderThisTurn sigue contando 1 región')
+}
+{
+  // neutrales: sin patria, pero saquean a los dos bandos
+  const { s } = withRace('murlocs')
+  chk(conquestCost(s, 'durotar').homeland !== true, 'los Múrlocs no tienen patria en la Horda')
+  chk(conquestCost(s, 'darkshore').homeland !== true, 'ni en la Alianza')
+  chk(conquestCost(s, 'durotar').plunder === true && conquestCost(s, 'darkshore').plunder === true,
+    'pero saquean a los dos bandos')
+  chk(conquestCost(s, 'hyjal').plunder !== true, 'las regiones neutrales no dan botín a nadie')
 }
 
 console.log(ok ? '\nREGLAS CORRECTAS ✅' : '\nHAY FALLOS ❌')

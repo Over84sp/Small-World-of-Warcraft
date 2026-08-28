@@ -1,7 +1,8 @@
 import { REGIONS } from './mapData.generated'
-import { RACE_BY_ID, POWER_BY_ID, RACES, POWERS } from './abilities'
+import { RACE_BY_ID, POWER_BY_ID, RACES, POWERS, RACE_SIDE, isEnemyRegion } from './abilities'
 import {
   LOST_TRIBE,
+  type Side,
   type Ability,
   type AbilityContext,
   type Combo,
@@ -64,6 +65,18 @@ export function ctxOf(state: GameState, f: FactionState): AbilityContext {
   return { state, faction: f, owned: regionsOf(state, f.uid) }
 }
 
+/** the banner a faction fights under */
+export function sideOf(f: FactionState): Side {
+  return RACE_SIDE[f.raceId] ?? 'neutral'
+}
+
+/** enemy-banner regions taken this turn, i.e. the plunder bonus */
+export function plunderThisTurn(state: GameState, f: FactionState): string[] {
+  if (f.inDecline) return []
+  const side = sideOf(f)
+  return state.turn.conquered.filter((id) => isEnemyRegion(side, REGION_BY_ID[id]))
+}
+
 export function factionLabel(f: FactionState): string {
   const race = RACE_BY_ID[f.raceId]?.name ?? f.raceId
   const power = POWER_BY_ID[f.powerId]?.name ?? f.powerId
@@ -97,6 +110,10 @@ export interface CostInfo {
   reachable: boolean
   reason?: string
   viaSea: boolean
+  /** region of your own banner: 1 token cheaper */
+  homeland: boolean
+  /** region of the enemy banner: pays plunder when conquered */
+  plunder: boolean
 }
 
 export function conquestCost(state: GameState, regionId: string): CostInfo {
@@ -104,22 +121,22 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const st = state.regions[regionId]
   const player = state.players[state.current]
   const uid = player.activeUid
-  if (!uid) return { cost: 99, reachable: false, reason: 'Sin raza activa', viaSea: false }
+  if (!uid) return { cost: 99, reachable: false, reason: 'Sin raza activa', viaSea: false, homeland: false, plunder: false }
   const f = state.factions[uid]
   const ctx = ctxOf(state, f)
 
   if (state.turn.assaultFailed) {
-    return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false }
+    return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false, homeland: false, plunder: false }
   }
-  if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false }
-  if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false }
+  if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false, homeland: false, plunder: false }
+  if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false, homeland: false, plunder: false }
   if (st.owner && st.owner !== LOST_TRIBE) {
     const enemy = state.factions[st.owner]
     if (enemy.playerId === player.id) {
-      return { cost: 99, reachable: false, reason: 'Es tu raza en declive', viaSea: false }
+      return { cost: 99, reachable: false, reason: 'Es tu raza en declive', viaSea: false, homeland: false, plunder: false }
     }
     if (state.players[enemy.playerId].peaceWith === player.id) {
-      return { cost: 99, reachable: false, reason: 'Tratado diplomático', viaSea: false }
+      return { cost: 99, reachable: false, reason: 'Tratado diplomático', viaSea: false, homeland: false, plunder: false }
     }
   }
 
@@ -135,6 +152,9 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
 
   let cost = 2 + defenseOf(state, regionId)
   for (const a of abilitiesOf(f)) cost += a.conquestCost?.(ctx, region) ?? 0
+  // liberating your own homeland is easier: the locals join you
+  const homeland = region.faction && region.faction === sideOf(f)
+  if (homeland) cost -= 1
   if (viaSea) {
     const freeSea = f.raceId === 'murlocs' || f.powerId === 'seafaring'
     if (!freeSea) cost += 1
@@ -146,6 +166,8 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
     reachable,
     reason: reachable ? undefined : owned.length === 0 ? 'Empieza por una región costera' : 'No es adyacente',
     viaSea,
+    homeland: !!homeland,
+    plunder: isEnemyRegion(sideOf(f), region),
   }
 }
 
@@ -487,6 +509,11 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
     const base = ctx.owned.length
     total += base
     if (base) detail.push(`${factionLabel(f)}${f.inDecline ? ' (declive)' : ''}: ${base}`)
+    const plunder = plunderThisTurn(state, f).length
+    if (plunder) {
+      total += plunder
+      detail.push(`  Botín de facción: +${plunder}`)
+    }
     for (const a of abilitiesOf(f)) {
       const bonus = a.scoreBonus?.(ctx) ?? 0
       if (bonus) {
