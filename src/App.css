@@ -105,8 +105,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 /* ------------------------------------------------------------ panel */
-.panel { grid-area: panel; overflow-y: auto; padding: 12px; background: #0c141d; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.panel { grid-area: panel; overflow-y: auto; padding: 12px; background: #0c141d; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; overflow: hidden; min-width: 0; }
 .card h2 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
 .card h2 i { width: 12px; height: 12px; border-radius: 4px; }
 .card h2 em { font-style: normal; font-size: 10px; background: #2a3a4a; padding: 2px 7px; border-radius: 20px; color: var(--muted); }
@@ -152,10 +152,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .deployrow button { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 3px 0; }
 .deployrow strong { text-align: center; color: var(--gold); }
 
-.log { flex: 1; min-height: 140px; }
-.log ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; max-height: 260px; overflow-y: auto; }
-.log li { display: flex; gap: 7px; font-size: 12px; color: #a9b8c6; line-height: 1.35; }
+.log { flex: none; min-height: 140px; max-height: 320px; display: flex; flex-direction: column; overflow: hidden; }
+.log ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; flex: 1; min-height: 0; max-height: 260px; overflow-y: auto; overflow-x: hidden; }
+.log li { display: flex; gap: 7px; font-size: 12px; color: #a9b8c6; line-height: 1.35; align-items: flex-start; min-width: 0; }
 .log li i { width: 7px; height: 7px; border-radius: 2px; margin-top: 4px; flex: none; }
+.log li span { flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 
 .victory ol { list-style: none; padding: 0; display: grid; gap: 7px; margin: 0 0 14px; }
 .victory li { display: flex; align-items: center; gap: 9px; background: var(--panel2); padding: 9px 12px; border-radius: 9px; }
@@ -226,7 +227,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .grab i { width: 42px; height: 4px; border-radius: 4px; background: #35485c; }
 .grab span { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
-.sheetinner { overflow-y: auto; padding: 0 10px 14px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+.sheetinner { overflow-y: auto; padding: 0 10px 14px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; min-width: 0; }
 .sheet:not(.open) .sheetinner { display: none; }
 
 /* ------------------------------------------------------------- tutorial */
@@ -296,7 +297,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .board { min-height: 0; }
   .sheet { max-height: 58vh; }
   .sheet.open .sheetinner { max-height: calc(58vh - 34px); }
-  .card { padding: 11px; }
+  .card { padding: 11px; overflow: hidden; min-width: 0; }
   .card h2 { font-size: 15px; }
   .tutbody h2 { font-size: 18px; }
   .tuttext { font-size: 13.5px; }
@@ -304,6 +305,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .actions button, .confirmrow button, .combo, .primary { min-height: 44px; }
   .deployrow { grid-template-columns: 1fr 40px 34px 40px; }
   .deployrow button { min-height: 38px; }
+  .log { max-height: 200px; }
   .log ul { max-height: 150px; }
   .modalbox { padding: 20px 18px; }
   .zoomctl { right: 8px; bottom: 8px; }
