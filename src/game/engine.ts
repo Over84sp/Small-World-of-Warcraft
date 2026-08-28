@@ -108,6 +108,9 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const f = state.factions[uid]
   const ctx = ctxOf(state, f)
 
+  if (state.turn.assaultFailed) {
+    return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false }
+  }
   if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false }
   if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false }
   if (st.owner && st.owner !== LOST_TRIBE) {
@@ -208,6 +211,7 @@ function emptyTurn() {
   return {
     conquered: [], conqueredOccupied: [], diceUsed: 0, diceLast: null,
     usedFlight: false, declaredDecline: false, firstConquestDone: false, pendingReturns: {},
+    assaultFailed: false, attacked: [],
   }
 }
 
@@ -288,6 +292,9 @@ export interface ConquerResult {
 
 export function conquer(state: GameState, regionId: string, useDie = false): ConquerResult {
   if (state.phase !== 'conquer') return { ok: false, message: 'No es la fase de conquista' }
+  if (state.turn.assaultFailed) {
+    return { ok: false, message: 'Tu asalto fracasó: la fase de conquista ha terminado' }
+  }
   const player = state.players[state.current]
   const uid = player.activeUid
   if (!uid) return { ok: false, message: 'Sin raza activa' }
@@ -306,8 +313,10 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
     state.turn.diceLast = rolled
     if (f.hand + rolled < info.cost) {
       const used = f.hand
-      // failed assault: all remaining tokens stay in hand but the conquest ends
-      log(state, player.id, `¡El dado saca ${rolled}! Asalto a ${REGION_BY_ID[regionId].name} fallido (${used}+${rolled} < ${info.cost})`)
+      // a failed assault really does end the conquest phase — that is what makes
+      // the reinforcement die a gamble rather than a free extra roll
+      state.turn.assaultFailed = true
+      log(state, player.id, `¡El dado saca ${rolled}! Asalto a ${REGION_BY_ID[regionId].name} fallido (${used}+${rolled} < ${info.cost}). Fin de sus conquistas.`)
       return { ok: false, message: `Dado ${rolled}: insuficiente (${used}+${rolled} de ${info.cost})`, rolled }
     }
   }
@@ -324,6 +333,7 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
       state.turn.pendingReturns[enemy.uid] = (state.turn.pendingReturns[enemy.uid] ?? 0) + back
     }
     state.turn.conqueredOccupied.push(regionId)
+    if (!state.turn.attacked.includes(enemy.playerId)) state.turn.attacked.push(enemy.playerId)
     log(state, player.id, `expulsa a ${factionLabel(enemy)} de ${REGION_BY_ID[regionId].name}`)
   } else if (st.owner === LOST_TRIBE) {
     log(state, player.id, `somete a la tribu perdida de ${REGION_BY_ID[regionId].name}`)
@@ -443,6 +453,29 @@ export function placeMarker(state: GameState, regionId: string): GameState {
   return state
 }
 
+/** opponents the Diplomat may sign peace with this turn */
+export function diplomacyOptions(state: GameState): number[] {
+  const player = state.players[state.current]
+  if (!player.activeUid) return []
+  if (state.factions[player.activeUid].powerId !== 'diplomat') return []
+  return state.players
+    .filter((p) => p.id !== player.id && !state.turn.attacked.includes(p.id))
+    .map((p) => p.id)
+}
+
+export function needsDiplomacy(state: GameState): boolean {
+  const player = state.players[state.current]
+  return player.peaceWith === null && diplomacyOptions(state).length > 0
+}
+
+export function setPeace(state: GameState, targetId: number): GameState {
+  if (!diplomacyOptions(state).includes(targetId)) return state
+  const player = state.players[state.current]
+  player.peaceWith = targetId
+  log(state, player.id, `firma la paz con ${state.players[targetId].name}: no podrá atacarle hasta su próximo turno`)
+  return state
+}
+
 export function scoreFor(state: GameState, playerId: number): { total: number; detail: string[] } {
   const player = state.players[playerId]
   const detail: string[] = []
@@ -472,6 +505,13 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
 
 export function endTurn(state: GameState): GameState {
   const player = state.players[state.current]
+
+  // never let the turn dead-end on an unmade diplomatic choice
+  if (needsDiplomacy(state)) {
+    const opts = diplomacyOptions(state)
+    const richest = opts.reduce((a, b) => (state.players[a].coins >= state.players[b].coins ? a : b))
+    setPeace(state, richest)
+  }
 
   // leftover tokens of the active race go on the board automatically
   if (player.activeUid && state.phase !== 'gameover') autoRedeploy(state)

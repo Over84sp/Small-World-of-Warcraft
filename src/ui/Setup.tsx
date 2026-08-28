@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BOARDS, ROUNDS_BY_PLAYERS, defaultBoardFor } from '../game/engine'
+import { describeWhen, savedInfo } from '../game/save'
 import { PLAYER_COLORS, PLAYER_NAMES } from './theme'
 
 export interface SetupResult {
@@ -8,7 +9,12 @@ export interface SetupResult {
   seed: number
 }
 
-export function Setup({ onStart, onTutorial }: { onStart: (r: SetupResult) => void; onTutorial: () => void }) {
+export function Setup({ onStart, onTutorial, onContinue }: {
+  onStart: (r: SetupResult) => void
+  onTutorial: () => void
+  onContinue: () => void
+}) {
+  const saved = useMemo(() => savedInfo(), [])
   const [count, setCount] = useState(3)
   const [humans, setHumans] = useState(1)
   const [boardId, setBoardId] = useState(defaultBoardFor(3))
@@ -38,6 +44,26 @@ export function Setup({ onStart, onTutorial }: { onStart: (r: SetupResult) => vo
           Un mundo demasiado pequeño para tantos pueblos. Conquista, exprime a tu raza y mándala
           al declive antes de que se desangre.
         </p>
+
+        {saved && (
+          <button className="resume" onClick={onContinue}>
+            <div className="rhead">
+              <strong>Continuar partida</strong>
+              <em>{describeWhen(saved.savedAt)}</em>
+            </div>
+            <div className="rmeta">
+              Ronda {saved.round}/{saved.maxRounds} · {BOARDS.find((b) => b.id === saved.boardId)?.name}
+            </div>
+            <div className="rplayers">
+              {saved.players.map((p, i) => (
+                <span key={i} className={i === saved.current ? 'on' : ''}>
+                  <i style={{ background: PLAYER_COLORS[i] }} />
+                  {p.name} {p.coins}🪙
+                </span>
+              ))}
+            </div>
+          </button>
+        )}
 
         <label className="field">
           <span>Jugadores</span>

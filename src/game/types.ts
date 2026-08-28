@@ -67,6 +67,10 @@ export interface TurnState {
   usedFlight: boolean
   declaredDecline: boolean
   firstConquestDone: boolean
+  /** a failed reinforcement roll ends the conquest phase for the turn */
+  assaultFailed: boolean
+  /** players attacked this turn — the Diplomat may not make peace with them */
+  attacked: number[]
   /** tokens owed back to opponents after this turn */
   pendingReturns: Record<string, number>
 }

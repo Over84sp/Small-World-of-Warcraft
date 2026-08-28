@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # tipos + 200 partidas IA + reglas + guardado + guion y navegación del tutorial
+      - run: npm run check
       - run: npm run build
         env:
           # project sites live at https://<user>.github.io/<repo>/

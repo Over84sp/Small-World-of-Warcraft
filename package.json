@@ -12,7 +12,9 @@
     "sim": "tsx scripts/sim.ts",
     "tuttest": "tsx scripts/tuttest.ts",
     "navtest": "tsx --tsconfig tsconfig.app.json scripts/navtest.ts",
-    "check": "tsc -b && npm run sim && npm run tuttest && npm run navtest"
+    "check": "tsc -b && npm run sim && npm run rulestest && npm run savetest && npm run tuttest && npm run navtest",
+    "rulestest": "tsx scripts/rulestest.ts",
+    "savetest": "tsx scripts/savetest.ts"
   },
   "dependencies": {
     "react": "^19.2.8"

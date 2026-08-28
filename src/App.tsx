@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BOARDS, REGION_BY_ID, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
-  conquestCost, createGame, defenseOf, endTurn, factionLabel, goIntoDecline, placeMarker,
-  placeToken, regionsOf, scoreFor, selectCombo, startRedeploy,
+  conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
+  goIntoDecline, needsDiplomacy, placeMarker, placeToken, regionsOf, scoreFor,
+  selectCombo, setPeace, startRedeploy,
 } from './game/engine'
+import { clearSave, loadGame, saveGame } from './game/save'
 import { RACE_BY_ID, POWER_BY_ID } from './game/abilities'
 import type { GameState } from './game/types'
 import { MapView } from './ui/MapView'
@@ -72,6 +74,15 @@ export default function App() {
   const start = (r: SetupResult) => {
     const s = createGame(r.players, r.seed, r.boardId)
     beginTurn(s)
+    clearSave()
+    setState(s)
+    setScreen('game')
+    clearTurnState()
+  }
+
+  const resume = () => {
+    const s = loadGame()
+    if (!s) return
     setState(s)
     setScreen('game')
     clearTurnState()
@@ -93,6 +104,11 @@ export default function App() {
       if (botTimer.current) window.clearTimeout(botTimer.current)
     }
   }, [state, isBotTurn, act, screen]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // autosave: the engine state is plain JSON, so this is just a stringify
+  useEffect(() => {
+    if (state && screen === 'game') saveGame(state)
+  }, [state, screen])
 
   useEffect(() => {
     if (!flash) return
@@ -118,7 +134,7 @@ export default function App() {
 
   if (screen === 'tutorial') return <Tutorial onExit={() => setScreen('setup')} />
   if (!state || !player || screen === 'setup') {
-    return <Setup onStart={start} onTutorial={() => setScreen('tutorial')} />
+    return <Setup onStart={start} onTutorial={() => setScreen('tutorial')} onContinue={resume} />
   }
 
   const activeFaction = player.activeUid ? state.factions[player.activeUid] : null
@@ -188,7 +204,7 @@ export default function App() {
             <li key={p.id}><i style={{ background: PLAYER_COLORS[p.id] }} />{p.name}<strong>{p.coins}</strong></li>
           ))}
         </ol>
-        <button className="primary" onClick={() => setScreen('setup')}>Jugar otra vez</button>
+        <button className="primary" onClick={() => { clearSave(); setScreen('setup') }}>Jugar otra vez</button>
       </section>
     ) : (
       <>
@@ -280,11 +296,18 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <p className="hint">
-                {confirmMode
-                  ? 'Toca una región marcada para verla, y otra vez para conquistarla.'
-                  : 'Clic en una región marcada para conquistarla. El círculo amarillo es el coste.'}
-              </p>
+              state.turn.assaultFailed ? (
+                <p className="sbad">
+                  🎲 Tu asalto fracasó. Se acabaron las conquistas de este turno: reparte tus
+                  fichas y pasa el turno.
+                </p>
+              ) : (
+                <p className="hint">
+                  {confirmMode
+                    ? 'Toca una región marcada para verla, y otra vez para conquistarla.'
+                    : 'Clic en una región marcada para conquistarla. El círculo amarillo es el coste.'}
+                </p>
+              )
             )}
             <div className="actions">
               <button className="primary" disabled={!canRollDie} onClick={doDie}>
@@ -304,6 +327,29 @@ export default function App() {
             </div>
             {state.turn.diceLast != null && <div className="dieresult">Último dado: <strong>{state.turn.diceLast}</strong></div>}
           </section>
+        )}
+
+        {!isBotTurn && needsDiplomacy(state) && (
+          <section className="card diplo">
+            <h3>Diplomacia</h3>
+            <p className="hint">
+              Elige un rival con el que firmar la paz: no podrá atacarte hasta tu próximo turno.
+              No puedes pactar con quien hayas atacado este turno.
+            </p>
+            <div className="diplolist">
+              {diplomacyOptions(state).map((pid) => (
+                <button key={pid} onClick={() => act((s) => setPeace(s, pid), true)}>
+                  <i style={{ background: PLAYER_COLORS[pid] }} />
+                  {state.players[pid].name}
+                  <strong>{state.players[pid].coins} 🪙</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {player.peaceWith !== null && !isBotTurn && (
+          <div className="peacenote">🕊 Paz firmada con {state.players[player.peaceWith].name}</div>
         )}
 
         {state.phase === 'redeploy' && activeFaction && !isBotTurn && (

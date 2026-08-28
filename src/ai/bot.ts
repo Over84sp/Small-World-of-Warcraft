@@ -1,7 +1,7 @@
 import {
   REGION_BY_ID, autoRedeploy, canDeclineNow, comboTokens, conquer, conquestCost,
-  ctxOf, endTurn, goIntoDecline, legalTargets, ownerPlayer,
-  placeMarker, regionsOf, scoreFor, selectCombo, startRedeploy,
+  ctxOf, diplomacyOptions, endTurn, goIntoDecline, legalTargets, needsDiplomacy,
+  ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, startRedeploy,
 } from '../game/engine'
 import { RACE_BY_ID, POWER_BY_ID } from '../game/abilities'
 import type { GameState } from '../game/types'
@@ -11,6 +11,7 @@ export type BotAction =
   | { kind: 'conquer'; regionId: string; useDie: boolean; label: string }
   | { kind: 'marker'; regionId: string; label: string }
   | { kind: 'decline'; label: string }
+  | { kind: 'peace'; targetId: number; label: string }
   | { kind: 'endTurn'; label: string }
 
 /** value of holding a region for this faction, ignoring conquest cost */
@@ -127,6 +128,22 @@ export function chooseAction(state: GameState): BotAction {
     }
   }
 
+  // sign peace with whoever is best placed to hurt us next turn
+  if (needsDiplomacy(state)) {
+    const opts = diplomacyOptions(state)
+    const contact = (pid: number) =>
+      owned.reduce(
+        (n, r) => n + r.neighbors.filter((x) => ownerPlayer(state, state.regions[x].owner) === pid).length,
+        0,
+      )
+    const best = opts.reduce((a, b) => {
+      const da = contact(a) * 3 + state.players[a].coins / 10
+      const db = contact(b) * 3 + state.players[b].coins / 10
+      return db > da ? b : a
+    })
+    return { kind: 'peace', targetId: best, label: `firma la paz con ${state.players[best].name}` }
+  }
+
   return { kind: 'endTurn', label: 'termina el turno' }
 }
 
@@ -142,6 +159,9 @@ export function applyBotAction(state: GameState, action: BotAction): string {
     }
     case 'marker':
       placeMarker(state, action.regionId)
+      return action.label
+    case 'peace':
+      setPeace(state, action.targetId)
       return action.label
     case 'decline':
       goIntoDecline(state)

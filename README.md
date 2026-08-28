@@ -30,6 +30,8 @@ todo el mapa, el arte y el código están redibujados desde cero, sin usar mater
 - **Adaptado a móvil**: layout de mapa + panel deslizante, zoom con pellizco y arrastre,
   objetivos táctiles de 44 px y confirmación en dos toques.
 - **Deshacer** (Ctrl+Z o el botón ↶) para revertir cualquier acción de tu turno.
+- **Guardado automático** en `localStorage` tras cada jugada: cierra la pestaña y continúa
+  donde lo dejaste desde la pantalla inicial.
 
 ## Desarrollo
 
@@ -38,7 +40,10 @@ npm install
 npm run dev        # servidor de desarrollo
 npm run build      # build de producción en dist/
 npm run genmap     # regenera el mapa desde scripts/mapSeeds.ts
+npm run check      # todo: tipos + IA + reglas + guardado + tutorial
 npm run sim        # 200 partidas IA vs IA para equilibrar
+npm run rulestest  # regresión de reglas (dado fallido, diplomacia)
+npm run savetest   # el guardado sobrevive a JSON ida y vuelta
 npm run tuttest    # comprueba que el guion del tutorial es jugable de principio a fin
 npm run navtest    # comprueba la navegación del tutorial (rebobinado al ir atrás)
 ```
