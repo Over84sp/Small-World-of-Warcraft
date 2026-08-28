@@ -98,6 +98,7 @@ function withRace(raceId: string, powerId = 'merchant') {
   selectCombo(s, 0)
   const f = s.factions[s.players[0].activeUid!]
   f.hand = 40
+  s.legendary = [] // limpiar losetas para tests que no son de legendarios
   return { s, f }
 }
 
@@ -161,6 +162,57 @@ function withRace(raceId: string, powerId = 'merchant') {
   chk(conquestCost(s, 'durotar').plunder === true && conquestCost(s, 'darkshore').plunder === true,
     'pero saquean a los dos bandos')
   chk(conquestCost(s, 'hyjal').plunder !== true, 'las regiones neutrales no dan botín a nadie')
+}
+
+/* ---------- 5. Lugares legendarios y artefactos ---------- */
+console.log('\n[5] Lugares legendarios y artefactos: revelado y puntuación')
+{
+  const { s, f } = withRace('humans')
+  // colocar manualmente 2 losetas boca abajo
+  s.legendary = [
+    { defId: 'dark_portal', regionId: 'nbarrens', revealed: false, isArtifact: false },
+    { defId: 'doomhammer', regionId: 'sbarrens', revealed: false, isArtifact: true },
+  ]
+  chk(s.legendary.length === 2, '2 losetas colocadas (una por jugador en partida de 2)')
+  // conquistar durotar primero para que nbarrens sea adyacente y reachable
+  conquer(s, 'durotar')
+  // conquistar nbarrens debe revelar
+  const before = s.legendary[0].revealed
+  conquer(s, 'nbarrens')
+  chk(!before && s.legendary[0].revealed, 'conquistar revela la loseta boca abajo')
+  const sc1 = scoreFor(s, 0)
+  chk(sc1.detail.some(d => d.includes('Portal Oscuro')), 'Portal Oscuro aparece en la puntuación: ' + sc1.detail.join(' | '))
+  chk(sc1.total >= 2, `Portal Oscuro da +2 monedas (total ${sc1.total})`)
+
+  // artefacto permanece aunque abandones (declive)
+  conquer(s, 'sbarrens')
+  chk(s.legendary[1].revealed, 'artefacto revelado al conquistar')
+  const sc2 = scoreFor(s, 0)
+  const hasDoom = sc2.detail.some(d => d.includes('Martillo Maldito'))
+  chk(hasDoom, 'Martillo Maldito puntúa mientras lo controlas')
+}
+{
+  // Campo de Batalla duplica botín
+  const { s, f } = withRace('humans')
+  s.legendary = [
+    { defId: 'battlefield', regionId: 'durotar', revealed: true, isArtifact: false },
+  ]
+  conquer(s, 'durotar') // durotar es horda -> botín 1, pero con battlefield doble
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some(d => d.includes('Campo de Batalla')), 'Campo de Batalla aparece en detalle')
+  chk(sc.total >= 3, `Campo de Batalla duplica botín, total ${sc.total} >=3`)
+}
+{
+  // Pozo de la Eternidad debe estar en costa
+  const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }], 123, 'kalimdor')
+  const well = s.legendary.find(t => t.defId === 'well_of_eternity')
+  if (well) {
+    const { REGION_BY_ID } = require('../src/game/engine')
+    const reg = REGION_BY_ID[well.regionId]
+    chk(!!reg?.coastal, `Pozo de la Eternidad en costa (${reg?.name} costera=${reg?.coastal})`)
+  } else {
+    console.log('  SKIP  Pozo no salió en esta semilla (aleatorio), ok')
+  }
 }
 
 console.log(ok ? '\nREGLAS CORRECTAS ✅' : '\nHAY FALLOS ❌')

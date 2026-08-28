@@ -1,5 +1,6 @@
 import { REGIONS } from './mapData.generated'
 import { RACE_BY_ID, POWER_BY_ID, RACES, POWERS, RACE_SIDE, isEnemyRegion } from './abilities'
+import { LEGENDARY_DEFS, LEGENDARY_BY_ID, computeLegendaryBonus } from './legendary'
 import {
   LOST_TRIBE,
   type Side,
@@ -10,6 +11,7 @@ import {
   type GameState,
   type RegionData,
   type RegionState,
+  type LegendaryTile,
 } from './types'
 
 export const REGION_BY_ID: Record<string, RegionData> = Object.fromEntries(
@@ -206,6 +208,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
     turn: emptyTurn(),
     log: [],
     winner: null,
+    legendary: [],
   }
 
   for (const r of REGIONS) {
@@ -216,6 +219,53 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
       st.tokens = 1
     }
     state.regions[r.id] = st
+  }
+
+  // ---- legendary places & artifacts: one per player, face-down on the board
+  {
+    const boardRegs = REGIONS.filter((r) => board.landmasses.includes(r.landmass))
+    const shuffledDefs = shuffle(state, LEGENDARY_DEFS)
+    const count = Math.min(configs.length, shuffledDefs.length, boardRegs.length)
+    const chosenDefs = shuffledDefs.slice(0, count)
+    const shuffledRegs = shuffle(state, boardRegs)
+    let regIdx = 0
+    const tiles: LegendaryTile[] = []
+    for (const def of chosenDefs) {
+      // find a suitable region, respecting mustBeCoastal
+      let attempts = 0
+      let region: RegionData | undefined
+      while (attempts < 50) {
+        const cand = shuffledRegs[regIdx % shuffledRegs.length]
+        regIdx++
+        attempts++
+        if (!cand) break
+        if (tiles.some((t) => t.regionId === cand.id)) continue
+        if (def.mustBeCoastal && !cand.coastal) continue
+        region = cand
+        break
+      }
+      // fallback: if coastal required but none found, force to a coastal region
+      if (!region) {
+        const coastal = boardRegs.filter((r) => r.coastal)
+        const pool = coastal.length ? coastal : boardRegs
+        region = pool.find((r) => !tiles.some((t) => t.regionId === r.id)) ?? pool[0]
+      }
+      if (region) {
+        tiles.push({ defId: def.id, regionId: region.id, revealed: false, isArtifact: def.isArtifact })
+      }
+    }
+    // well_of_eternity special: if somehow inland, move to coastal
+    for (const t of tiles) {
+      const def = LEGENDARY_BY_ID[t.defId]
+      if (def?.mustBeCoastal) {
+        const r = REGION_BY_ID[t.regionId]
+        if (r && !r.coastal) {
+          const coastal = boardRegs.filter((c) => c.coastal && !tiles.some((ot) => ot.regionId === c.id))
+          if (coastal.length) t.regionId = pick(state, coastal).id
+        }
+      }
+    }
+    state.legendary = tiles
   }
 
   const races = shuffle(state, RACES.map((r) => r.id))
@@ -369,6 +419,17 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
   st.hero = false
   state.turn.conquered.push(regionId)
   state.turn.firstConquestDone = true
+
+  // reveal legendary tile if present face-down
+  const leg = state.legendary.find((t) => t.regionId === regionId && !t.revealed)
+  if (leg) {
+    leg.revealed = true
+    const def = LEGENDARY_BY_ID[leg.defId]
+    if (def) {
+      log(state, player.id, `¡Revela ${def.isArtifact ? 'Artefacto' : 'Lugar legendario'} ${def.name} en ${REGION_BY_ID[regionId].name}! ${def.effectDesc}`)
+    }
+  }
+
   return { ok: true, message: 'Conquista realizada', rolled }
 }
 
@@ -502,6 +563,24 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
   const player = state.players[playerId]
   const detail: string[] = []
   let total = 0
+  // track if player has battlefield (double faction)
+  let hasDoubleFaction = false
+  let plunderExtra = 0
+
+  // collect owned region ids for legendary checks
+  const ownedRegionIds = new Set<string>()
+  for (const uid of [player.activeUid, player.declineUid]) {
+    if (!uid) continue
+    for (const r of regionsOf(state, uid)) ownedRegionIds.add(r.id)
+  }
+
+  // pre-scan legendary tiles owned and revealed
+  const ownedLegendary = state.legendary.filter((t) => t.revealed && ownedRegionIds.has(t.regionId))
+  for (const tile of ownedLegendary) {
+    const def = LEGENDARY_BY_ID[tile.defId]
+    if (def?.effect.kind === 'double_faction') hasDoubleFaction = true
+  }
+
   for (const uid of [player.activeUid, player.declineUid]) {
     if (!uid) continue
     const f = state.factions[uid]
@@ -509,11 +588,19 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
     const base = ctx.owned.length
     total += base
     if (base) detail.push(`${factionLabel(f)}${f.inDecline ? ' (declive)' : ''}: ${base}`)
-    const plunder = plunderThisTurn(state, f).length
+
+    // faction plunder
+    let plunder = plunderThisTurn(state, f).length
+    if (plunder && hasDoubleFaction) {
+      // Campo de Batalla doubles it
+      plunderExtra += plunder // extra equal to base
+      detail.push(`  Botín de facción x2 (Campo de Batalla): +${plunder} extra`)
+    }
     if (plunder) {
       total += plunder
       detail.push(`  Botín de facción: +${plunder}`)
     }
+
     for (const a of abilitiesOf(f)) {
       const bonus = a.scoreBonus?.(ctx) ?? 0
       if (bonus) {
@@ -527,7 +614,60 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
       detail.push(`  Fortalezas: +${forts}`)
     }
   }
+
+  if (plunderExtra) total += plunderExtra
+
+  // legendary bonuses (excluding double_faction which already handled)
+  for (const tile of ownedLegendary) {
+    const def = LEGENDARY_BY_ID[tile.defId]
+    if (!def) continue
+    if (def.effect.kind === 'double_faction') continue
+    let bonus = 0
+    // per_plunder needs special handling: only for current player and only for active turn
+    if (def.effect.kind === 'per_plunder') {
+      if (state.current === playerId) {
+        // count enemy-faction regions conquered this turn that are still owned? Use plunderThisTurn for active faction
+        const activeUid = player.activeUid
+        if (activeUid) {
+          const activeF = state.factions[activeUid]
+          if (activeF) {
+            bonus = plunderThisTurn(state, activeF).length
+          }
+        }
+      }
+    } else {
+      bonus = computeLegendaryBonus(state, playerId, tile.regionId, def, REGION_BY_ID)
+    }
+    if (bonus) {
+      total += bonus
+      const icon = def.isArtifact ? '🔮' : '★'
+      detail.push(`  ${icon} ${def.name}: +${bonus}`)
+    } else if (def.effect.kind === 'flat' && def.effect.value === 0) {
+      // no bonus, but still show?
+    } else if (bonus === 0 && def.effect.kind !== 'flat') {
+      // show 0 bonus for clarity? Only for flat we always show
+      // For per_* that yields 0, we skip to avoid noise, but for tutorial we want visibility
+      // We'll show if tile is battlefield (already handled) or if bonus is 0 but tile is relevant, skip
+    } else if (def.effect.kind === 'flat') {
+      // flat 0? shouldn't happen
+      total += bonus
+      detail.push(`  ${def.isArtifact ? '🔮' : '★'} ${def.name}: +${bonus}`)
+    }
+  }
+
+  // also show legendary tiles that give 0 but are owned, for transparency (optional)
+  // For flat bonuses that are 0? No.
+
   return { total, detail }
+}
+
+export function legendaryAt(state: GameState, regionId: string) {
+  return state.legendary.find((t) => t.regionId === regionId) ?? null
+}
+
+export function legendaryDefOf(tile: { defId: string } | null) {
+  if (!tile) return null
+  return LEGENDARY_BY_ID[tile.defId] ?? null
 }
 
 export function endTurn(state: GameState): GameState {

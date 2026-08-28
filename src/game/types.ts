@@ -83,6 +83,14 @@ export interface LogEntry {
   text: string
 }
 
+export interface LegendaryTile {
+  /** definition id, e.g. 'karazhan' */
+  defId: string
+  regionId: string
+  revealed: boolean
+  isArtifact: boolean
+}
+
 export interface GameState {
   rng: number
   boardId: string
@@ -99,6 +107,7 @@ export interface GameState {
   turn: TurnState
   log: LogEntry[]
   winner: number | null
+  legendary: LegendaryTile[]
 }
 
 export interface AbilityContext {

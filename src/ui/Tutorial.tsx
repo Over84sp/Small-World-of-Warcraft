@@ -6,7 +6,7 @@ import {
 import { RACE_BY_ID, POWER_BY_ID } from '../game/abilities'
 import type { GameState } from '../game/types'
 import { MapView } from './MapView'
-import { FactionIcon } from './mapArt'
+import { FactionIcon, LegendaryIcon } from './mapArt'
 import { PLAYER_COLORS } from './theme'
 import { useIsMobile } from './useMediaQuery'
 
@@ -84,8 +84,9 @@ export const STEPS: Step[] = [
         <ul className="legend">
           <li><span className="lg" style={{ background: '#7f8288' }} /><b>⛰ Montaña</b> — cuesta 1 ficha más conquistarla</li>
           <li><span className="lg" style={{ background: '#456253' }} /><b>⚓ Costera</b> — se puede invadir desde el mar</li>
-          <li><span className="lg" style={{ background: '#c2ad6c' }} /><b>★ Lugar legendario</b> — algunas razas puntúan extra aquí</li>
+          <li><span className="lg" style={{ background: '#c2ad6c' }} /><b>★ Lugar legendario / 🔮 Artefacto</b> — bonus especial al conquistarlo (abajo a la derecha)</li>
           <li><span className="lg" style={{ background: '#2f3a44' }} /><b>Círculo gris</b> — una tribu perdida defiende la región</li>
+          <li><span className="lg" style={{ background: '#2a2f3a' }} /><b>❓ Boca abajo</b> — lugar sin revelar, ¡conquístalo para ver qué es!</li>
         </ul>
         <p>Los círculos de colores son fichas: el número es <strong>cuántas hay</strong>.</p>
       </>
@@ -188,6 +189,55 @@ export const STEPS: Step[] = [
     panel: 'none',
   },
   {
+    id: 'legendary',
+    title: 'Lugares legendarios y artefactos',
+    body: (
+      <>
+        <p>Algunas regiones tienen un icono <strong>❓</strong> abajo a la derecha. Son <strong>losetas boca abajo</strong>: un Lugar Legendario ★ o un Artefacto 🔮 escondido.</p>
+        <div className="factlegend">
+          <span className="fl" style={{ background: '#2a2317', color: '#ffe9a8' }}><LegendaryIcon isArtifact={false} size={18} /> Lugar</span>
+          <span className="fl" style={{ background: '#231a3a', color: '#d8c0ff' }}><LegendaryIcon isArtifact={true} size={18} /> Artefacto</span>
+          <span className="fl none">❓ sin revelar</span>
+        </div>
+        <p>Al conquistar la región, se <strong>revela</strong> y te da su poder <em>inmediatamente</em> y cada turno mientras la controles.</p>
+        <ul className="factrules">
+          <li><b>★ Portal Oscuro:</b> +2 monedas</li>
+          <li><b>★ Pozo de la Eternidad:</b> +3 monedas, siempre aparece en costa</li>
+          <li><b>★ Campo de Batalla:</b> tu botín de facción cuenta doble</li>
+          <li><b>🔮 Artefactos</b> se quedan en la región aunque la abandones o entres en declive. Si te la conquistan, cambian de dueño.</li>
+        </ul>
+        <p>En esta partida hay <strong>{'tantas losetas como jugadores'}</strong>, como en el juego de mesa. En el tutorial he puesto una en <strong>Northern Barrens</strong>.</p>
+        <p className="doit">👉 Conquista <strong>Northern Barrens</strong> para revelar el Portal Oscuro.</p>
+      </>
+    ),
+    setup: (s) => {
+      // ensure Northern Barrens has a face-down Portal Oscuro for the lesson
+      if (!s.legendary) s.legendary = []
+      const existing = s.legendary.find((t) => t.regionId === 'nbarrens')
+      if (!existing) {
+        s.legendary.push({ defId: 'dark_portal', regionId: 'nbarrens', revealed: false, isArtifact: false })
+      } else {
+        existing.defId = 'dark_portal'
+        existing.revealed = false
+        existing.isArtifact = false
+      }
+      // clean other tiles that could confuse this step
+      // keep only this one face-down to make lesson clear
+      s.legendary = s.legendary.filter((t) => t.regionId === 'nbarrens')
+      // ensure nbarrens is empty for conquest
+      if (s.regions['nbarrens'].owner === s.players[0].activeUid) {
+        // already owned from previous rewind, reset
+        setRegion(s, 'nbarrens', null, 0)
+      }
+    },
+    spotlight: () => ['nbarrens', 'durotar', 'azshara'],
+    done: (s) => {
+      const tile = s.legendary.find((t) => t.regionId === 'nbarrens')
+      return !!tile?.revealed && s.regions['nbarrens'].owner === s.players[0].activeUid
+    },
+    panel: 'conquer',
+  },
+  {
     id: 'mountain',
     title: 'Las montañas se defienden solas',
     body: (
@@ -195,7 +245,7 @@ export const STEPS: Step[] = [
         <p>Una región de <strong>montaña ⛰</strong> siempre cuesta <strong>1 ficha más</strong>,
           esté vacía o no. A cambio, cuando sea tuya, también le costará más al rival quitártela.</p>
         <Cost parts={[['base', 2], ['montaña', 1], ['defensores', 0]]} total={3} />
-        <p><strong>Monte Hyjal</strong> además tiene <strong>★</strong>: un lugar legendario.</p>
+        <p><strong>Monte Hyjal</strong> es montaña y está justo al lado de Azshara.</p>
         <p className="doit">👉 Conquista <strong>Monte Hyjal</strong>.</p>
       </>
     ),
@@ -309,6 +359,8 @@ export const STEPS: Step[] = [
         <p>Y ahí está el <strong>botín de facción</strong>: +1 por cada región de la Horda
           (Durotar y Azshara) que has tomado <em>este turno</em>. Solo se cobra el turno de la
           conquista, así que atacar al bando contrario premia el ataque, no la ocupación.</p>
+        <p>Y el <strong>Portal Oscuro</strong> que acabas de revelar en Northern Barrens: <strong>+2 monedas</strong> extra
+          cada turno mientras lo controles. Los artefactos se quedan aunque entres en declive.</p>
         <p>Por eso la combinación importa tanto: dos jugadores con las mismas regiones
           pueden cobrar muy distinto.</p>
       </>
@@ -346,7 +398,7 @@ export const STEPS: Step[] = [
           <li>⏳ <b>Declinar pronto</b> es perder un turno de ataque a cambio de una raza fresca</li>
           <li>💰 <b>Las últimas rondas</b> valen tanto como las primeras: cuenta cuántas quedan</li>
         </ul>
-        <p>Los símbolos ⛰ ⚓ ★ y el número amarillo del coste están siempre en el mapa,
+        <p>Los símbolos ⛰ ⚓ ★ 🔮 ❓ y el número amarillo del coste están siempre en el mapa,
           y el botón <strong>Reglas</strong> tiene el resumen a mano.</p>
       </>
     ),

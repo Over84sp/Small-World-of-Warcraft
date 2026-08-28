@@ -1,8 +1,9 @@
 import {
   REGION_BY_ID, autoRedeploy, canDeclineNow, comboTokens, conquer, conquestCost,
-  ctxOf, diplomacyOptions, endTurn, goIntoDecline, legalTargets, needsDiplomacy,
+  ctxOf, diplomacyOptions, endTurn, goIntoDecline, legalTargets, legendaryAt, needsDiplomacy,
   ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, startRedeploy, sideOf } from '../game/engine'
 import { RACE_BY_ID, POWER_BY_ID, isEnemyRegion } from '../game/abilities'
+import { LEGENDARY_BY_ID } from '../game/legendary'
 import type { GameState } from '../game/types'
 
 export type BotAction =
@@ -35,6 +36,23 @@ function regionValue(state: GameState, regionId: string, uid: string): number {
   // clustering bonus: adjacency to our own regions is safer
   const mine = r.neighbors.filter((n) => state.regions[n].owner === uid).length
   v += mine * 0.15
+
+  // legendary places & artifacts are juicy targets
+  const leg = legendaryAt(state, regionId)
+  if (leg) {
+    const def = LEGENDARY_BY_ID[leg.defId]
+    if (def) {
+      if (!leg.revealed) v += 2.2 // curiosity: face-down could be anything
+      else {
+        // revealed: estimate its bonus
+        if (def.effect.kind === 'flat') v += def.effect.value * 0.9
+        else if (def.effect.kind === 'double_faction') v += 2.5
+        else v += 1.8
+        if (def.isArtifact) v += 0.5
+      }
+    }
+  }
+
   return v
 }
 

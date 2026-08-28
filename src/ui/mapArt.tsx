@@ -296,3 +296,49 @@ export function FactionIcon({ side, size = 16 }: { side: Side; size?: number }) 
     </svg>
   )
 }
+
+/* ------------------------------------------------- legendary places & artifacts */
+export function LegendaryMark({
+  isArtifact,
+  revealed,
+  x,
+  y,
+  r = 7.2,
+}: {
+  isArtifact: boolean
+  revealed: boolean
+  x: number
+  y: number
+  r?: number
+}) {
+  const bg = revealed ? (isArtifact ? '#6a3fb5' : '#8a6410') : '#2a2f3a'
+  const ring = revealed ? (isArtifact ? '#d2b8ff' : '#ffe9a8') : '#8b9bab'
+  return (
+    <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <circle r={r} fill={bg} stroke={ring} strokeWidth={r * 0.18} />
+      <circle r={r} fill="none" stroke="#0a1219" strokeWidth={r * 0.08} opacity={0.6} />
+      <g transform={`scale(${r / 9.6})`}>
+        {!revealed ? (
+          <text textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={800} fill="#dde6ef">?</text>
+        ) : isArtifact ? (
+          // artifact: crystal / gem
+          <g>
+            <path d="M0 -6.5 L4.8 -2 L2.8 6 L-2.8 6 L-4.8 -2 Z" fill="#d2b8ff" stroke="#3a225a" strokeWidth={0.8} />
+            <path d="M0 -6.5 L0 6 M-4.8 -2 L2.8 6 M4.8 -2 L-2.8 6" stroke="#8a5bd6" strokeWidth={0.6} opacity={0.8} />
+          </g>
+        ) : (
+          // legendary place: star
+          <path d={starPath(7.2, 3.1)} fill="#ffd964" stroke="#5c3f05" strokeWidth={0.8} strokeLinejoin="round" />
+        )}
+      </g>
+    </g>
+  )
+}
+
+export function LegendaryIcon({ isArtifact, size = 16 }: { isArtifact: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="-10 -10 20 20" style={{ verticalAlign: 'middle' }}>
+      <LegendaryMark isArtifact={isArtifact} revealed x={0} y={0} r={8.5} />
+    </svg>
+  )
+}

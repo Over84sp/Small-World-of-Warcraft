@@ -8,6 +8,7 @@ const chk=(c:boolean,m:string)=>{console.log((c?'  OK  ':'  FAIL')+'  '+m); if(!
 
 const s = createGame([{name:'Tú',isBot:false},{name:'Horda',isBot:true}], 20260828, 'kalimdor')
 s.phase='pick'
+s.legendary=[] // limpiar aleatorias para test determinista
 
 // step: board
 setR(s,'winterspring','lost-tribe',1); setR(s,'felwood','lost-tribe',1)
@@ -28,12 +29,19 @@ chk(conquer(s,'durotar').ok,'conquista Durotar')
 i=conquestCost(s,'azshara'); chk(i.reachable&&i.cost===2,`Azshara adyacente, coste ${i.cost} (esperado 2)`)
 chk(conquer(s,'azshara').ok,'conquista Azshara')
 
+// step: legendary (nuevo)
+s.legendary=[{defId:'dark_portal', regionId:'nbarrens', revealed:false, isArtifact:false}]
+i=conquestCost(s,'nbarrens'); chk(i.reachable&&i.cost===2,`Northern Barrens con loseta boca abajo, coste ${i.cost} (esperado 2)`)
+chk(conquer(s,'nbarrens').ok,'conquista Northern Barrens y revela Portal Oscuro')
+chk(s.legendary[0].revealed,'loseta revelada')
+chk(f().hand===13,`tras Durotar+Azshara+Northern Barrens quedan ${f().hand} fichas (20-3-2-2=13)`)
+
 // step: mountain
 i=conquestCost(s,'hyjal'); chk(i.reachable&&i.cost===3,`Hyjal montaña, coste ${i.cost} (esperado 3)`)
 chk(conquer(s,'hyjal').ok,'conquista Monte Hyjal')
 
 // step: lost tribe  (SIN rellenar la mano: debe salir la cuenta sola)
-chk(f().hand===12,`tras Durotar+Azshara+Hyjal quedan ${f().hand} fichas (20-3-2-3 = 12)`)
+chk(f().hand===10,`tras Hyjal quedan ${f().hand} fichas (13-3=10)`)
 i=conquestCost(s,'felwood'); chk(i.reachable&&i.cost===3,`Felwood tribu perdida, coste ${i.cost} (esperado 3)`)
 chk(conquer(s,'felwood').ok,'somete Felwood')
 
@@ -41,12 +49,12 @@ chk(conquer(s,'felwood').ok,'somete Felwood')
 s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'berserk',inDecline:false,hand:0,markers:0}
 s.players[1].activeUid=HORDE
 setR(s,'ashenvale',HORDE,2)
-chk(f().hand===9,`tras Felwood quedan ${f().hand} fichas (12-3 = 9)`)
+chk(f().hand===7,`tras Felwood quedan ${f().hand} fichas (10-3=7)`)
 i=conquestCost(s,'ashenvale'); chk(i.reachable&&i.cost===3&&i.homeland===true,`Ashenvale con 2 defensores en patria de la Alianza, coste ${i.cost} (esperado 3 = 2+2-1)`)
 chk(conquer(s,'ashenvale').ok,'expulsa a la Horda')
 chk(s.turn.pendingReturns[HORDE]===1,'el defensor recupera 1 ficha (pierde 1)')
 
-chk(f().hand===6,`tras Ashenvale quedan ${f().hand} fichas (9-3 = 6)`)
+chk(f().hand===4,`tras Ashenvale quedan ${f().hand} fichas (7-3=4)`)
 
 // step: dice  (staging deliberado y anunciado)
 f().hand=3
@@ -63,7 +71,8 @@ chk(f().hand===0,'reparte todas las fichas')
 // step: score
 const sc=scoreFor(s,0)
 chk(sc.total>0,`puntúa ${sc.total} monedas -> ${sc.detail.join(' | ')}`)
-chk(sc.detail.some(d=>d.includes('Botín de facción: +2')),'el botín de Durotar y Azshara (Horda) aparece en la puntuación')
+chk(sc.detail.some(d=>d.includes('Botín de facción: +3')),'el botín de Durotar, Azshara y Northern Barrens (Horda) aparece: +3')
+chk(sc.detail.some(d=>d.includes('Portal Oscuro')),`Portal Oscuro aparece en puntuación: ${sc.detail.join(' | ')}`)
 
 // step: decline
 goIntoDecline(s)

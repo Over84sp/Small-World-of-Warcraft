@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BOARDS, REGION_BY_ID, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
   conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
-  goIntoDecline, needsDiplomacy, placeMarker, placeToken, plunderThisTurn, regionsOf,
+  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, placeMarker, placeToken, plunderThisTurn, regionsOf,
   scoreFor, selectCombo, setPeace, sideOf, startRedeploy,
 } from './game/engine'
 import { clearSave, loadGame, saveGame } from './game/save'
 import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities'
+import { LEGENDARY_BY_ID } from './game/legendary'
 import type { GameState } from './game/types'
 import { MapView } from './ui/MapView'
-import { FactionIcon } from './ui/mapArt'
+import { FactionIcon, LegendaryIcon } from './ui/mapArt'
 import { Setup, type SetupResult } from './ui/Setup'
 import { Tutorial } from './ui/Tutorial'
 import { PLAYER_COLORS, TERRAIN_LABEL } from './ui/theme'
@@ -258,6 +259,28 @@ export default function App() {
               ⚔ Botín de facción este turno: <strong>+{plunderThisTurn(state, activeFaction).length}</strong> 🪙
             </div>
           )}
+          {state.legendary.filter(t => t.revealed).length > 0 && (
+            <div className="legendary-owned">
+              {state.legendary.filter(t => {
+                return t.revealed && (() => {
+                  const pid = player.id
+                  const owned = new Set<string>()
+                  for (const uid of [state.players[pid].activeUid, state.players[pid].declineUid]) {
+                    if (!uid) continue
+                    for (const [rid, rs] of Object.entries(state.regions)) if (rs.owner === uid) owned.add(rid)
+                  }
+                  return owned.has(t.regionId)
+                })()
+              }).map(t => {
+                const def = LEGENDARY_BY_ID[t.defId]
+                return (
+                  <span key={t.defId} className={`legchip ${def?.isArtifact ? 'artifact' : 'place'}`}>
+                    <LegendaryIcon isArtifact={!!def?.isArtifact} size={12} /> {def?.name}
+                  </span>
+                )
+              })}
+            </div>
+          )}
           <div className="preview">Si acabas ahora: <strong>{preview.total}</strong> 🪙</div>
         </section>
 
@@ -315,6 +338,20 @@ export default function App() {
                 )}
                 {selInfo.homeland && <div className="bonusline home">🏳 Tu propia tierra: cuesta 1 ficha menos</div>}
                 {selInfo.plunder && <div className="bonusline loot">⚔ Botín: +1 moneda al conquistarla</div>}
+                {(() => {
+                  const leg = legendaryAt(state, selRegion.id)
+                  const def = legendaryDefOf(leg)
+                  if (!leg) return null
+                  if (!leg.revealed) {
+                    return <div className="bonusline legendary hidden">❓ Loseta boca abajo: se revelará al conquistarla</div>
+                  }
+                  return (
+                    <div className={`bonusline legendary ${def?.isArtifact ? 'artifact' : 'place'}`}>
+                      <LegendaryIcon isArtifact={!!def?.isArtifact} size={14} /> <strong>{def?.name}</strong> — {def?.effectDesc}
+                      <div className="lore">{def?.lore}</div>
+                    </div>
+                  )
+                })()}
                 <div className="smeta">Defensa: <strong>{defenseOf(state, selRegion.id)}</strong></div>
                 {selInfo.reachable ? (
                   <>

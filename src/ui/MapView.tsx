@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, ownerPlayer } from '../game/engine'
+import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, legendaryAt, ownerPlayer } from '../game/engine'
 import { LOST_TRIBE, type GameState, type RegionData } from '../game/types'
 import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL } from './theme'
-import { Badge, FactionMark, badgesFor, terrainDecor } from './mapArt'
+import { Badge, FactionMark, LegendaryMark, badgesFor, terrainDecor } from './mapArt'
 
 interface Props {
   state: GameState
@@ -261,6 +261,7 @@ export function MapView({
             const pid = ownerPlayer(state, st.owner)
             const decline = st.owner && st.owner !== LOST_TRIBE && state.factions[st.owner]?.inDecline
             const dimmed = !!spot && !spot.has(r.id)
+            const leg = legendaryAt(state, r.id)
             return (
               <g key={`o-${r.id}`} className={`overlay${dimmed ? ' dimmed' : ''}`} pointerEvents="none">
                 {(() => {
@@ -274,9 +275,6 @@ export function MapView({
                   ))
                 })()}
                 {(() => {
-                  // long names wrap onto two lines so they stay inside their region;
-                  // the halo is a separate stroked copy because `paint-order` is not
-                  // reliable across browsers
                   const lines = wrapName(r.name)
                   const fs = s(lines.length > 1 ? 6.8 : 7.6)
                   const y0 = cy - s(1) - (lines.length - 1) * fs * 0.42
@@ -300,6 +298,15 @@ export function MapView({
                     <text y={s(3.4)} fontSize={s(9.5)}>{targets[r.id].cost}</text>
                     {targets[r.id].viaSea && <Badge kind="anchor" x={s(10)} y={s(7)} r={s(4.4)} />}
                   </g>
+                )}
+                {leg && (
+                  <LegendaryMark
+                    isArtifact={leg.isArtifact}
+                    revealed={leg.revealed}
+                    x={cx + 15}
+                    y={cy + 11}
+                    r={s(7.2)}
+                  />
                 )}
                 {spot?.has(r.id) && (
                   <circle className="spotring" cx={cx} cy={cy} r={s(20)} fill="none" stroke="#ffe28a" strokeWidth={s(2)} />
