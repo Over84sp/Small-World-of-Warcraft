@@ -75,8 +75,62 @@ export function defaultBoardFor(players: number): string {
 }
 
 /** regions that are part of the board currently in play */
+const boardRegionsCache = new Map<string, RegionData[]>()
+
+/** shelf bin-packing: lays out each landmass's own footprint edge-to-edge
+ *  so islands read as one archipelago instead of scattered specks of land */
+function packLandmasses(ids: string[]): Map<string, { dx: number; dy: number }> {
+  const boxes = ids.map((id) => {
+    const regs = REGIONS.filter((r) => r.landmass === id)
+    const xs = regs.flatMap((r) => r.polygon.map((p) => p[0]))
+    const ys = regs.flatMap((r) => r.polygon.map((p) => p[1]))
+    const x0 = Math.min(...xs)
+    const y0 = Math.min(...ys)
+    return { id, x0, y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 }
+  })
+  boxes.sort((a, b) => b.h - a.h)
+  const gap = 70
+  const cols = Math.max(1, Math.ceil(Math.sqrt(boxes.length)))
+  const maxRowWidth = Math.max(...boxes.map((b) => b.w)) * cols + gap * cols
+  let cursorX = 0
+  let cursorY = 0
+  let rowH = 0
+  const offsets = new Map<string, { dx: number; dy: number }>()
+  for (const b of boxes) {
+    if (cursorX > 0 && cursorX + b.w > maxRowWidth) {
+      cursorX = 0
+      cursorY += rowH + gap
+      rowH = 0
+    }
+    offsets.set(b.id, { dx: cursorX - b.x0, dy: cursorY - b.y0 })
+    cursorX += b.w + gap
+    rowH = Math.max(rowH, b.h)
+  }
+  return offsets
+}
+
 export function boardRegions(state: GameState): RegionData[] {
-  return REGIONS.filter((r) => state.landmasses.includes(r.landmass))
+  const ids = state.landmasses
+  const key = ids.join(',')
+  const cached = boardRegionsCache.get(key)
+  if (cached) return cached
+
+  let result: RegionData[]
+  if (ids.length <= 1) {
+    result = REGIONS.filter((r) => ids.includes(r.landmass))
+  } else {
+    const offsets = packLandmasses(ids)
+    result = REGIONS.filter((r) => ids.includes(r.landmass)).map((r) => {
+      const off = offsets.get(r.landmass)!
+      return {
+        ...r,
+        polygon: r.polygon.map(([x, y]) => [x + off.dx, y + off.dy] as [number, number]),
+        center: [r.center[0] + off.dx, r.center[1] + off.dy] as [number, number],
+      }
+    })
+  }
+  boardRegionsCache.set(key, result)
+  return result
 }
 
 /* ------------------------------------------------------------------ rng */
