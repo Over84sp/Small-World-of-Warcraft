@@ -23,18 +23,55 @@ export const DIE_FACES = [0, 0, 0, 1, 2, 3]
 export const TRAY_SIZE = 6
 export const ROUNDS_BY_PLAYERS: Record<number, number> = { 2: 10, 3: 10, 4: 9, 5: 8 }
 
-export interface BoardDef { id: string; name: string; landmasses: string[]; desc: string }
+export interface BoardDef { id: string; name: string; landmasses: string[]; desc: string; size?: 'S' | 'M' | 'L' }
 
-export const BOARDS: BoardDef[] = [
-  { id: 'kalimdor', name: 'Kalimdor', landmasses: ['kalimdor', 'teldrassil', 'theramore', 'maelstrom'], desc: 'Tablero compacto \u00b7 ideal 2 jugadores' },
-  { id: 'eastern', name: 'Reinos del Este', landmasses: ['eastern-kingdoms', 'quel-danas', 'tolbarad', 'maelstrom'], desc: 'Tablero medio \u00b7 ideal 3 jugadores' },
-  { id: 'azeroth', name: 'Azeroth completo', landmasses: Array.from(new Set(REGIONS.map((r) => r.landmass))), desc: 'Mundo entero \u00b7 ideal 4-5 jugadores' },
+export const ISLANDS: BoardDef[] = [
+  { id: 'small_a', name: 'Isla Pequeña A', landmasses: ['small_a'], desc: '7 regiones', size: 'S' },
+  { id: 'small_b', name: 'Isla Pequeña B', landmasses: ['small_b'], desc: '7 regiones', size: 'S' },
+  { id: 'medium_a', name: 'Isla Mediana A', landmasses: ['medium_a'], desc: '9 regiones', size: 'M' },
+  { id: 'medium_b', name: 'Isla Mediana B', landmasses: ['medium_b'], desc: '9 regiones', size: 'M' },
+  { id: 'large_a', name: 'Isla Grande A', landmasses: ['large_a'], desc: '11 regiones', size: 'L' },
+  { id: 'large_b', name: 'Isla Grande B', landmasses: ['large_b'], desc: '11 regiones', size: 'L' },
 ]
 
+// Configuraciones oficiales por número de jugadores (S7 M9 L11)
+export const BOARDS: BoardDef[] = [
+  { id: '2p', name: '2 jugadores: 1 grande + 1 pequeña', landmasses: [], desc: '18 regiones · 10 rondas' },
+  { id: '3p', name: '3 jugadores: 1 grande +1 mediana +1 pequeña', landmasses: [], desc: '27 regiones · 10 rondas' },
+  { id: '4p', name: '4 jugadores: 1 grande +2 medianas +1 pequeña', landmasses: [], desc: '36 regiones · 9 rondas' },
+  { id: '5p', name: '5 jugadores: 2 grandes +1 mediana +2 pequeñas', landmasses: [], desc: '45 regiones · 8 rondas' },
+  { id: '6p', name: '6 jugadores: todas las islas', landmasses: ['small_a', 'small_b', 'medium_a', 'medium_b', 'large_a', 'large_b'], desc: '54 regiones · experimental' },
+  { id: 'official', name: 'Oficial aleatorio', landmasses: [], desc: 'Selección aleatoria según jugadores' },
+]
+
+function selectOfficialIslands(playerCount: number, rng: () => number): string[] {
+  const small = ['small_a', 'small_b']
+  const medium = ['medium_a', 'medium_b']
+  const large = ['large_a', 'large_b']
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rng() * arr.length)]
+  if (playerCount <= 2) {
+    return [pick(large), pick(small)]
+  }
+  if (playerCount === 3) {
+    return [pick(large), pick(medium), pick(small)]
+  }
+  if (playerCount === 4) {
+    return [pick(large), ...medium, pick(small)]
+  }
+  if (playerCount >= 5) {
+    if (playerCount === 5) {
+      return [...large, pick(medium), ...small]
+    }
+    return [...small, ...medium, ...large]
+  }
+  return [...small, ...medium, ...large].slice(0, playerCount * 9)
+}
+
 export function defaultBoardFor(players: number): string {
-  if (players <= 2) return 'kalimdor'
-  if (players === 3) return 'eastern'
-  return 'azeroth'
+  if (players <= 2) return '2p'
+  if (players === 3) return '3p'
+  if (players === 4) return '4p'
+  return '5p'
 }
 
 /** regions that are part of the board currently in play */
@@ -189,11 +226,34 @@ export interface PlayerConfig {
 }
 
 export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?: string): GameState {
-  const board = BOARDS.find((b) => b.id === (boardId ?? defaultBoardFor(configs.length)))!
+  const requestedId = boardId ?? defaultBoardFor(configs.length)
+  let board = BOARDS.find((b) => b.id === requestedId)
+  let landmasses: string[]
+  // si es una isla suelta (small_a etc) usamos esa isla
+  const singleIsland = ISLANDS.find((i) => i.id === requestedId)
+  if (singleIsland) {
+    board = { id: singleIsland.id, name: singleIsland.name, landmasses: singleIsland.landmasses, desc: singleIsland.desc, size: singleIsland.size }
+    landmasses = singleIsland.landmasses
+  } else if (requestedId === '6p') {
+    landmasses = ['small_a', 'small_b', 'medium_a', 'medium_b', 'large_a', 'large_b']
+    board = BOARDS.find((b) => b.id === '6p')!
+  } else {
+    // oficial: selección aleatoria según jugadores, usando rng temporal para no consumir el del estado
+    let tmpRng = seed >>> 0
+    const tmpNext = () => {
+      tmpRng = (tmpRng + 0x6d2b79f5) >>> 0
+      let t = tmpRng
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    landmasses = selectOfficialIslands(configs.length, tmpNext)
+    board = BOARDS.find((b) => b.id === requestedId) ?? { id: requestedId, name: `Oficial ${configs.length}j`, landmasses, desc: `${landmasses.length} islas` }
+  }
   const state: GameState = {
     rng: seed >>> 0,
     boardId: board.id,
-    landmasses: board.landmasses,
+    landmasses,
     players: configs.map((c, i) => ({
       id: i, name: c.name, isBot: c.isBot, coins: 5, activeUid: null, declineUid: null, peaceWith: null,
     })),
@@ -213,7 +273,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
 
   for (const r of REGIONS) {
     const st: RegionState = { owner: null, tokens: 0, fortress: 0, hero: false }
-    if (!board.landmasses.includes(r.landmass)) { state.regions[r.id] = st; continue }
+    if (!landmasses.includes(r.landmass)) { state.regions[r.id] = st; continue }
     if (r.lostTribe) {
       st.owner = LOST_TRIBE
       st.tokens = 1
@@ -223,7 +283,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
 
   // ---- legendary places & artifacts: one per player, face-down on the board
   {
-    const boardRegs = REGIONS.filter((r) => board.landmasses.includes(r.landmass))
+    const boardRegs = REGIONS.filter((r) => landmasses.includes(r.landmass))
     const shuffledDefs = shuffle(state, LEGENDARY_DEFS)
     const count = Math.min(configs.length, shuffledDefs.length, boardRegs.length)
     const chosenDefs = shuffledDefs.slice(0, count)

@@ -1,0 +1,115 @@
+# Mapa Oficial Small World of Warcraft - Transcripción exacta
+
+Basado en fotos alta resolución wiki + regla oficial + crops 1000px Amazon.
+
+## Estructura oficial (6 islas doble cara, 2 por tamaño)
+
+| Tamaño | Regiones | Islas | ID en código |
+|--------|----------|-------|--------------|
+| S pequeña | 7 | 2 | small_a, small_b |
+| M mediana | 9 | 2 | medium_a, medium_b |
+| L grande | 11 | 2 | large_a, large_b |
+| **Total** | **54** | **6** | |
+
+### Distribución por jugadores (regla oficial p3 y p5)
+- **2j**: 1L + 1S = 18 regiones · 10 rondas
+- **3j**: 1L + 1M + 1S = 27 regiones · 10 rondas
+- **4j**: 1L + 2M + 1S = 36 regiones · 9 rondas
+- **5j**: 2L + 1M + 2S = 45 regiones · 8 rondas
+- **6j experimental**: todas = 54 regiones
+
+Selección aleatoria: de cada tamaño se elige al azar qué cara/isla concreta entra.
+
+## Componentes oficiales
+- **Montañas**: 10 fichas (en nuestro mapa 13 por aproximación, ajustar a 10)
+- **Murlocs (tribus perdidas)**: 15 fichas (en nuestro mapa 13, ajustar a 15)
+- **Muros Wisp**: 9 muros que bloquean fronteras entre regiones (no implementado aún, TODO)
+- **Fortalezas**: 10
+- **Héroes**: 5
+- **Lugares legendarios**: 7 (★) + **Artefactos**: 5 (🔮) = 12 losetas, se colocan 1 por jugador boca abajo, al conquistar se revela, no da defensa, permanece vacía, bonus mientras la ocupas.
+- **Entry / Ancla**: todas las regiones costeras (toca borde isla) son entrada marítima, coste +1 salvo Murlocs y Marinero.
+- **Banderas**: Alianza / Horda / Neutral para bonus facción.
+
+## Transcripción de islas (fotos)
+
+### Isla Pequeña A (small_a) - 7 regiones - crop_leftmid2.png + small_board.jpg
+1. Cima del Vigía - mountains + montaña impresa
+2. Campos de Westfall - fields - S legendario - Alianza
+3. Colinas de Hillsbrad - hills - Murloc
+4. Bosque de Elwynn - forest - Alianza
+5. Montañas Crestagrana - mountains + montaña
+6. Llanos de Mulgore - fields - Horda
+7. Pantano de los Zánganos - swamp - Murloc
+
+### Isla Pequeña B (small_b) - 7 regiones - crop_bottom.png
+1. Montañas de Alterac - mountains + montaña
+2. Campos de Arathi - fields - S
+3. Bosque de Argénteos - forest - Alianza
+4. Claro de Tirisfal - forest - Murloc
+5. Montañas de Colmillo - mountains + montaña
+6. Praderas de Loch Modan - fields
+7. Ciénaga de Dustwallow - swamp - Murloc
+
+### Isla Mediana A (medium_a) - 9 regiones - medium_board.jpg
+1. Pantano de las Penas - swamp
+2. Campos de Trabalomas - fields - M
+3. Bosque de Terokkar - forest
+4. Caverna de Desolace - swamp (cavern) - Murloc
+5. Montañas de Cumbre Borrascosa - mountains + montaña
+6. Colinas de Feralas - hills
+7. Bosque de Frondavil - forest - Alianza
+8. Praderas de Vallefresno - hills - Murloc
+9. Campos de Costasur - fields
+
+### Isla Mediana B (medium_b) - 9 regiones - crop_top.png (top island)
+1. Bosque de Ashenvale - forest - Alianza
+2. Ciénaga de Marjal Revolcafango - swamp
+3. Campos de Vega de Tuercespina - fields - M
+4. Montañas de Filospada - mountains + montaña
+5. Colinas de Desolace - hills - Murloc
+6. Bosque de Vega Crepuscular - forest - Murloc
+7. Campos de los Baldíos Sur - fields
+8. Montañas de Sierra Espolón - mountains + montaña
+9. Bosque de Claro de la Luna - forest
+
+### Isla Grande A (large_a) - 11 regiones - large_board.jpg + board_page3.png
+1. Pantano de Zangarmar - swamp
+2. Campos de Elwynn - fields - L
+3. Montañas de Dun Morogh - mountains + montaña
+4. Colinas de Loch Modan - hills - Alianza
+5. Campos de Westfall - fields
+6. Montañas de Crestagrana - mountains + montaña
+7. Bosque de Tuercespina - forest - Murloc
+8. Montañas de Vega de Tuercespina - mountains + montaña
+9. Praderas de Mulgore - hills
+10. Bosque de Claros de Tirisfal - forest - Horda
+11. Ciénaga de las Mil Agujas - swamp - Murloc
+
+### Isla Grande B (large_b) - 11 regiones - board_page3.png + crop_right.png
+1. Bosque de Cuna del Invierno - forest
+2. Pantano de Feralas - swamp
+3. Campos de Tanaris - fields - L
+4. Montañas de Cuna del Invierno - mountains + montaña
+5. Colinas de Silithus - hills - Murloc
+6. Bosque de Frondavil - forest - Murloc
+7. Campos de Vega de Tuercespina Sur - fields
+8. Montañas de Silithus - mountains + montaña
+9. Bosque de Claro de la Luna Sur - forest
+10. Pantano de Dustwallow - swamp - Murloc
+11. Montañas de Tanaris - mountains + montaña
+
+## Generación técnica
+- `scripts/mapOfficialSeeds.ts`: define 6 LANDMASSES con outline rect 300-400px y seeds x,y en espacio 0..1400
+- `scripts/genOfficialMap.ts`: Voronoi (d3-delaunay) + clipping (polygon-clipping) con outline, vecinos por arista compartida, coastal si toca outline
+- Output: `src/game/mapData.generated.ts` con 54 regiones, cada una con polygon, center, neighbors, mountain, coastal, lostTribe, landmark S/M/L
+- `src/game/engine.ts`: ISLANDS + BOARDS por nº jugadores + selectOfficialIslands() aleatorio con rng mulberry32
+- `src/ui/Setup.tsx`: muestra tableros 2p-6p y lista de islas
+
+## Pendiente para 100% fiel
+- [ ] Ajustar Murlocs de 13 a 15 exactos según foto alta res
+- [ ] Ajustar montañas de 13 a 10 exactos
+- [ ] Implementar 9 Wisp Walls como bloqueo de adyacencia (lista de pares bloqueados)
+- [ ] Entry cost: en oficial, desembarco cuesta 1 extra salvo Murlocs/Marinero, ya implementado
+- [ ] Revisar terrenos exactos de cada región con fotos wiki high-res (ahora aproximado)
+- [ ] Doble cara: cada isla tiene 2 caras, ahora solo 1 cara por isla (necesitaríamos 12 caras totales, 6 usadas por partida)
+- [ ] Colocar S/M/L legendario en regiones marcadas con landmark, no aleatorio total

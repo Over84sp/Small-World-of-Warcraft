@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BOARDS, ROUNDS_BY_PLAYERS, defaultBoardFor } from '../game/engine'
+import { BOARDS, ISLANDS, ROUNDS_BY_PLAYERS, defaultBoardFor } from '../game/engine'
 import { clearSave, describeWhen, savedInfo } from '../game/save'
 import { PLAYER_COLORS, PLAYER_NAMES } from './theme'
 
@@ -96,14 +96,17 @@ export function Setup({ onStart, onTutorial, onContinue }: {
         </label>
 
         <label className="field">
-          <span>Tablero</span>
+          <span>Tablero oficial (6 islas S7 M9 L11)</span>
           <div className="boards">
-            {BOARDS.map((b) => (
+            {BOARDS.filter(b=> b.id.endsWith('p')).map((b) => (
               <button key={b.id} className={boardId === b.id ? 'board on' : 'board'} onClick={() => setBoardId(b.id)}>
                 <strong>{b.name}</strong>
                 <em>{b.desc}</em>
               </button>
             ))}
+          </div>
+          <div style={{marginTop:8, fontSize:12, opacity:.7}}>
+            Islas: {ISLANDS.map(i=> `${i.name} ${i.desc}`).join(' · ')} — selección aleatoria por partida según nº jugadores (oficial)
           </div>
         </label>
 

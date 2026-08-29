@@ -92,10 +92,10 @@ export const STEPS: Step[] = [
       </>
     ),
     setup: (s) => {
-      setRegion(s, 'winterspring', 'lost-tribe', 1)
-      setRegion(s, 'felwood', 'lost-tribe', 1)
+      setRegion(s, 'sa7', 'lost-tribe', 1)
+      setRegion(s, 'sa3', 'lost-tribe', 1)
     },
-    spotlight: () => ['hyjal', 'durotar', 'winterspring', 'nbarrens'],
+    spotlight: () => ['sa1', 'sa6', 'sa7', 'sa2'],
     cta: 'Entendido',
     panel: 'none',
   },
@@ -130,7 +130,7 @@ export const STEPS: Step[] = [
         <p>Toda conquista parte de <strong>2 fichas</strong>, y llegar por mar
           cuesta <strong>1 más</strong> (los Múrlocs y el poder Navegante desembarcan gratis):</p>
         <Cost parts={[['base', 2], ['desembarco', 1], ['defensores', 0]]} total={3} />
-        <p className="doit">👉 Desembarca en <strong>Durotar</strong>. El círculo amarillo del mapa
+        <p className="doit">👉 Desembarca en <strong>Llanos de Mulgore</strong>. El círculo amarillo del mapa
           siempre te dice el coste exacto, ya calculado.</p>
       </>
     ),
@@ -139,8 +139,8 @@ export const STEPS: Step[] = [
       if (f && regionsOf(s, f.uid).length === 0) f.hand = TUTORIAL_ARMY
     },
     note: `Solo en el tutorial: te doy ${TUTORIAL_ARMY} fichas en vez de las 7 de tu combinación, para que puedas probarlo todo en un turno. A partir de aquí el contador baja de verdad con cada conquista.`,
-    spotlight: () => ['durotar'],
-    done: (s) => s.regions['durotar'].owner === s.players[0].activeUid,
+    spotlight: () => ['sa6'],
+    done: (s) => s.regions['sa6'].owner === s.players[0].activeUid,
     panel: 'conquer',
   },
   {
@@ -152,11 +152,11 @@ export const STEPS: Step[] = [
           <strong> adyacente</strong> a las tuyas (o seguir desembarcando en costas, pagando 1 ficha extra).</p>
         <p>Fíjate en que al conquistar <strong>dejas las fichas que has gastado</strong> en la región.
           Conquistar barato te deja regiones mal defendidas.</p>
-        <p className="doit">👉 Avanza a <strong>Azshara</strong>.</p>
+        <p className="doit">👉 Avanza a <strong>Bosque de Elwynn</strong>.</p>
       </>
     ),
-    spotlight: () => ['azshara'],
-    done: (s) => s.regions['azshara'].owner === s.players[0].activeUid,
+    spotlight: () => ['sa4'],
+    done: (s) => s.regions['sa4'].owner === s.players[0].activeUid,
     panel: 'conquer',
   },
   {
@@ -178,13 +178,13 @@ export const STEPS: Step[] = [
           <li><b>⚔ Botín:</b> cada región <em>de la Horda</em> que tomes te da <b>+1 moneda</b>,
             pero solo el turno en que la conquistas.</li>
         </ul>
-        <p><strong>Durotar</strong> y <strong>Azshara</strong>, que ya son tuyas, son de la Horda:
+        <p><strong>Llanos de Mulgore</strong> y <strong>Bosque de Elwynn</strong>, que ya son tuyas, son de la Horda:
           llevas <strong>+2 monedas</strong> de botín apuntadas para el final del turno.</p>
         <p className="hint">Las razas neutrales (Múrlocs, Pandaren, Naga, Dragón Negro) no tienen
           patria, pero saquean a los dos bandos. Y los Orcos cobran el botín doble contra la Alianza.</p>
       </>
     ),
-    spotlight: () => ['durotar', 'azshara', 'ashenvale', 'darkshore'],
+    spotlight: () => ['sa6', 'sa4', 'sa5', 'darkshore'],
     cta: 'Entendido',
     panel: 'none',
   },
@@ -206,16 +206,16 @@ export const STEPS: Step[] = [
           <li><b>★ Campo de Batalla:</b> tu botín de facción cuenta doble</li>
           <li><b>🔮 Artefactos</b> se quedan en la región aunque la abandones o entres en declive. Si te la conquistan, cambian de dueño.</li>
         </ul>
-        <p>En esta partida hay <strong>{'tantas losetas como jugadores'}</strong>, como en el juego de mesa. En el tutorial he puesto una en <strong>Northern Barrens</strong>.</p>
-        <p className="doit">👉 Conquista <strong>Northern Barrens</strong> para revelar el Portal Oscuro.</p>
+        <p>En esta partida hay <strong>{'tantas losetas como jugadores'}</strong>, como en el juego de mesa. En el tutorial he puesto una en <strong>Campos de Westfall</strong>.</p>
+        <p className="doit">👉 Conquista <strong>Campos de Westfall</strong> para revelar el Portal Oscuro.</p>
       </>
     ),
     setup: (s) => {
-      // ensure Northern Barrens has a face-down Portal Oscuro for the lesson
+      // ensure Campos de Westfall has a face-down Portal Oscuro for the lesson
       if (!s.legendary) s.legendary = []
-      const existing = s.legendary.find((t) => t.regionId === 'nbarrens')
+      const existing = s.legendary.find((t) => t.regionId === 'sa2')
       if (!existing) {
-        s.legendary.push({ defId: 'dark_portal', regionId: 'nbarrens', revealed: false, isArtifact: false })
+        s.legendary.push({ defId: 'dark_portal', regionId: 'sa2', revealed: false, isArtifact: false })
       } else {
         existing.defId = 'dark_portal'
         existing.revealed = false
@@ -223,17 +223,17 @@ export const STEPS: Step[] = [
       }
       // clean other tiles that could confuse this step
       // keep only this one face-down to make lesson clear
-      s.legendary = s.legendary.filter((t) => t.regionId === 'nbarrens')
+      s.legendary = s.legendary.filter((t) => t.regionId === 'sa2')
       // ensure nbarrens is empty for conquest
-      if (s.regions['nbarrens'].owner === s.players[0].activeUid) {
+      if (s.regions['sa2'].owner === s.players[0].activeUid) {
         // already owned from previous rewind, reset
-        setRegion(s, 'nbarrens', null, 0)
+        setRegion(s, 'sa2', null, 0)
       }
     },
-    spotlight: () => ['nbarrens', 'durotar', 'azshara'],
+    spotlight: () => ['sa2', 'sa6', 'sa4'],
     done: (s) => {
-      const tile = s.legendary.find((t) => t.regionId === 'nbarrens')
-      return !!tile?.revealed && s.regions['nbarrens'].owner === s.players[0].activeUid
+      const tile = s.legendary.find((t) => t.regionId === 'sa2')
+      return !!tile?.revealed && s.regions['sa2'].owner === s.players[0].activeUid
     },
     panel: 'conquer',
   },
@@ -245,12 +245,12 @@ export const STEPS: Step[] = [
         <p>Una región de <strong>montaña ⛰</strong> siempre cuesta <strong>1 ficha más</strong>,
           esté vacía o no. A cambio, cuando sea tuya, también le costará más al rival quitártela.</p>
         <Cost parts={[['base', 2], ['montaña', 1], ['defensores', 0]]} total={3} />
-        <p><strong>Monte Hyjal</strong> es montaña y está justo al lado de Azshara.</p>
-        <p className="doit">👉 Conquista <strong>Monte Hyjal</strong>.</p>
+        <p><strong>Cima del Vigía</strong> es montaña y está justo al lado de Bosque de Elwynn.</p>
+        <p className="doit">👉 Conquista <strong>Cima del Vigía</strong>.</p>
       </>
     ),
-    spotlight: () => ['hyjal'],
-    done: (s) => s.regions['hyjal'].owner === s.players[0].activeUid,
+    spotlight: () => ['sa1'],
+    done: (s) => s.regions['sa1'].owner === s.players[0].activeUid,
     panel: 'conquer',
   },
   {
@@ -262,16 +262,16 @@ export const STEPS: Step[] = [
           Cada ficha defensora suma <strong>+1 al coste</strong>.</p>
         <Cost parts={[['base', 2], ['tribu perdida', 1]]} total={3} />
         <p>La ficha de la tribu desaparece del juego para siempre.</p>
-        <p className="doit">👉 Somete <strong>Felwood</strong>.</p>
+        <p className="doit">👉 Somete <strong>Colinas de Hillsbrad</strong>.</p>
       </>
     ),
     setup: (s) => {
-      if (s.regions['felwood'].owner === 'lost-tribe' || s.regions['felwood'].owner === null) {
-        setRegion(s, 'felwood', 'lost-tribe', 1)
+      if (s.regions['sa3'].owner === 'lost-tribe' || s.regions['sa3'].owner === null) {
+        setRegion(s, 'sa3', 'lost-tribe', 1)
       }
     },
-    spotlight: () => ['felwood'],
-    done: (s) => s.regions['felwood'].owner === s.players[0].activeUid,
+    spotlight: () => ['sa3'],
+    done: (s) => s.regions['sa3'].owner === s.players[0].activeUid,
     panel: 'conquer',
   },
   {
@@ -279,23 +279,23 @@ export const STEPS: Step[] = [
     title: 'Atacar a un rival (y tu propia bandera)',
     body: (
       <>
-        <p>La Horda se ha instalado en <strong>Ashenvale</strong> con <strong>2 fichas</strong>.
+        <p>La Horda se ha instalado en <strong>Montañas Crestagrana</strong> con <strong>2 fichas</strong>.
           Cuestan lo mismo que cualquier defensor: +1 cada una.</p>
-        <p>Y aquí ves la <strong>patria</strong> en acción: Ashenvale es de la
+        <p>Y aquí ves la <strong>patria</strong> en acción: Montañas Crestagrana es de la
           <strong> Alianza</strong>, igual que tus Humanos, así que descuentas <strong>1 ficha</strong>.
           Atacar a un rival dentro de tu propio bando sale más barato.</p>
         <Cost parts={[['base', 2], ['2 defensores', 2], ['tu bandera', -1]]} total={3} />
         <p>Al expulsarlo, el defensor <strong>pierde 1 ficha para siempre</strong> y recupera el resto,
           que volverá al tablero al final de tu turno. Por eso atacar desgasta a los dos.</p>
-        <p className="doit">👉 Expulsa a la Horda de <strong>Ashenvale</strong>.</p>
+        <p className="doit">👉 Expulsa a la Horda de <strong>Montañas Crestagrana</strong>.</p>
       </>
     ),
     setup: (s) => {
       stageFaction(s)
-      if (s.regions['ashenvale'].owner !== s.players[0].activeUid) setRegion(s, 'ashenvale', HORDE, 2)
+      if (s.regions['sa5'].owner !== s.players[0].activeUid) setRegion(s, 'sa5', HORDE, 2)
     },
-    spotlight: () => ['ashenvale'],
-    done: (s) => s.regions['ashenvale'].owner === s.players[0].activeUid,
+    spotlight: () => ['sa5'],
+    done: (s) => s.regions['sa5'].owner === s.players[0].activeUid,
     panel: 'conquer',
   },
   {
@@ -303,23 +303,24 @@ export const STEPS: Step[] = [
     title: 'El dado de refuerzo',
     body: (
       <>
-        <p>Te quedan pocas fichas y <strong>Winterspring</strong> (montaña + tribu perdida) cuesta 4.
+        <p>Te quedan pocas fichas y <strong>Pantano de los Zánganos</strong> (montaña + tribu perdida) cuesta 4.
           Cuando no llegas, <strong>una vez por turno</strong> puedes jugártela al dado.</p>
         <div className="dieface">
           {[0, 0, 0, 1, 2, 3].map((n, i) => <span key={i}>{n}</span>)}
         </div>
         <p>Si <em>fichas + dado ≥ coste</em>, conquistas. Si no, el asalto fracasa y
           <strong> tu turno de conquistas termina</strong>. Es la última bala.</p>
-        <p className="doit">👉 Selecciona <strong>Winterspring</strong> y lanza el dado.</p>
+        <p className="doit">👉 Selecciona <strong>Pantano de los Zánganos</strong> y lanza el dado.</p>
       </>
     ),
     setup: (s) => {
       const f = s.factions[s.players[0].activeUid!]
       if (f && s.turn.diceUsed === 0) f.hand = 3
-      if (s.regions['winterspring'].owner === null) setRegion(s, 'winterspring', 'lost-tribe', 1)
+      // sa7 debe ser montaña + tribu para costar 4
+      setRegion(s, 'sa7', 'lost-tribe', 1)
     },
     note: 'Para esta lección te dejo a propósito con solo 3 fichas: así te falta justo lo necesario para tener que arriesgarte.',
-    spotlight: () => ['winterspring'],
+    spotlight: () => ['sa7'],
     done: (s) => s.turn.diceUsed > 0,
     panel: 'dice',
   },
@@ -357,9 +358,9 @@ export const STEPS: Step[] = [
           o sea que aquí cobras el doble. Los <strong>Humanos</strong> darían +1 por llanura,
           pero de momento no has ocupado ninguna.</p>
         <p>Y ahí está el <strong>botín de facción</strong>: +1 por cada región de la Horda
-          (Durotar y Azshara) que has tomado <em>este turno</em>. Solo se cobra el turno de la
+          (Llanos de Mulgore y Bosque de Elwynn) que has tomado <em>este turno</em>. Solo se cobra el turno de la
           conquista, así que atacar al bando contrario premia el ataque, no la ocupación.</p>
-        <p>Y el <strong>Portal Oscuro</strong> que acabas de revelar en Northern Barrens: <strong>+2 monedas</strong> extra
+        <p>Y el <strong>Portal Oscuro</strong> que acabas de revelar en Campos de Westfall: <strong>+2 monedas</strong> extra
           cada turno mientras lo controles. Los artefactos se quedan aunque entres en declive.</p>
         <p>Por eso la combinación importa tanto: dos jugadores con las mismas regiones
           pueden cobrar muy distinto.</p>
@@ -417,7 +418,7 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
     const s = createGame(
       [{ name: 'Tú', isBot: false }, { name: 'Horda', isBot: true }],
       20260828,
-      'kalimdor',
+      'small_a',
     )
     s.phase = 'pick'
     return s
@@ -550,9 +551,9 @@ export function Tutorial({ onExit }: { onExit: () => void }) {
       )}
 
       {cur.panel === 'dice' && (
-        <button className="primary" disabled={!selected || selected !== 'winterspring'}
+        <button className="primary" disabled={!selected || selected !== 'sa7'}
           onClick={() => act((s) => {
-            const res = conquer(s, 'winterspring', true)
+            const res = conquer(s, 'sa7', true)
             setFlash(res.rolled != null ? `🎲 Sale ${res.rolled} — ${res.ok ? '¡conquistada!' : 'asalto fallido'}` : res.message)
           })}>
           🎲 Lanzar el dado de refuerzo
