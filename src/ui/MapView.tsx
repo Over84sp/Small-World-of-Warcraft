@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, legendaryAt, ownerPlayer } from '../game/engine'
 import { LOST_TRIBE, type GameState, type RegionData } from '../game/types'
-import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL } from './theme'
+import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL, TERRAIN_LIST, lighten, darken } from './theme'
 import { Badge, FactionMark, LegendaryMark, badgesFor, terrainDecor } from './mapArt'
 
 interface Props {
@@ -182,13 +182,38 @@ export function MapView({
         style={{ touchAction: 'none' }}
       >
         <defs>
-          <radialGradient id="sea" cx="50%" cy="45%" r="75%">
-            <stop offset="0%" stopColor="#16324a" />
-            <stop offset="100%" stopColor="#0a1622" />
+          {/* deep-water gradient: a lighter sunlit patch fading to near-black depths */}
+          <radialGradient id="sea" cx="42%" cy="36%" r="85%">
+            <stop offset="0%" stopColor="#245876" />
+            <stop offset="30%" stopColor="#1a4a63" />
+            <stop offset="62%" stopColor="#123246" />
+            <stop offset="100%" stopColor="#050c13" />
           </radialGradient>
-          <pattern id="waves" width="18" height="18" patternUnits="userSpaceOnUse">
-            <path d="M0 12 q4.5 -5 9 0 t9 0" fill="none" stroke="#2b5573" strokeWidth="0.8" opacity="0.5" />
+          {/* two wave layers at different scales read as gentle swell, not a flat pattern */}
+          <pattern id="waves" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(6)">
+            <path d="M0 22 q8.5 -9 17 0 t17 0" fill="none" stroke="#3a7396" strokeWidth="1" opacity="0.35" />
+            <path d="M-8 8 q8.5 -8 17 0 t17 0" fill="none" stroke="#2c5a78" strokeWidth="0.7" opacity="0.3" />
           </pattern>
+          <pattern id="wavesFine" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(-4)">
+            <path d="M0 9 q3.2 -3.6 6.5 0 t6.5 0" fill="none" stroke="#4a86a8" strokeWidth="0.5" opacity="0.22" />
+          </pattern>
+          {/* subtle turbulence used both as sea caustics and as land paper-grain */}
+          <filter id="noiseTex" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" />
+            <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0" />
+          </filter>
+          <pattern id="grain" width="140" height="140" patternUnits="userSpaceOnUse">
+            <rect width="140" height="140" filter="url(#noiseTex)" />
+          </pattern>
+          <filter id="causticsTex" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="2" seed="11" />
+            <feColorMatrix type="matrix" values="0 0 0 0 0.55  0 0 0 0 0.8  0 0 0 0 0.95  0 0 0 0.12 0" />
+          </filter>
+          {/* darkened rim so the whole archipelago reads as sitting in deep water */}
+          <radialGradient id="vignette" cx="50%" cy="45%" r="72%">
+            <stop offset="60%" stopColor="#000000" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.4" />
+          </radialGradient>
           {/* soft shoreline halo so land reads as land */}
           <filter id="shore" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="b" />
@@ -197,11 +222,22 @@ export function MapView({
             <feComposite in2="SourceAlpha" operator="out" result="halo" />
             <feMerge><feMergeNode in="halo" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+          {/* bright blurred stroke behind coastal regions reads as surf breaking on the shore */}
+          <filter id="foam" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="1.6" />
+          </filter>
           <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.10" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
             <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.2" />
           </linearGradient>
+          {TERRAIN_LIST.map((t) => (
+            <linearGradient key={`grad-${t}`} id={`terrain-${t}`} x1="0.15" y1="0" x2="0.65" y2="1">
+              <stop offset="0%" stopColor={lighten(TERRAIN_COLORS[t], 13)} />
+              <stop offset="55%" stopColor={TERRAIN_COLORS[t]} />
+              <stop offset="100%" stopColor={darken(TERRAIN_COLORS[t], 11)} />
+            </linearGradient>
+          ))}
           {regions.map((r) => (
             <clipPath key={`cp-${r.id}`} id={`cp-${r.id}`}>
               <path d={roundedPath(r.polygon)} />
@@ -211,6 +247,9 @@ export function MapView({
 
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#sea)" />
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#waves)" />
+        <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#wavesFine)" />
+        <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#causticsTex)" opacity="0.5" style={{ mixBlendMode: 'soft-light' }} />
+        <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#vignette)" />
 
         <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
           {regions.map((r) => {
@@ -228,8 +267,14 @@ export function MapView({
                 onClick={() => clickRegion(r.id)}
               >
                 <title>{`${r.name} — ${TERRAIN_LABEL[r.terrain]}${r.faction && r.faction !== 'neutral' ? ` · ${r.faction === 'alliance' ? 'Alianza' : 'Horda'}` : ''}${r.mountain ? ' (montaña, +1 def)' : ''}${r.coastal ? ' · costera ⚓' : ''}${r.landmark ? ` · ${r.landmark}` : ''}\nDefensa: ${defenseOf(state, r.id)}${targets[r.id] ? `\nCoste de conquista: ${targets[r.id].cost}` : ''}`}</title>
-                <path d={roundedPath(r.polygon)} fill={TERRAIN_COLORS[r.terrain]} filter="url(#shore)" />
+                {r.coastal && (
+                  <path d={roundedPath(r.polygon)} fill="none" stroke="#cdeeff" strokeWidth={4.5}
+                    opacity={0.4} filter="url(#foam)" pointerEvents="none" />
+                )}
+                <path d={roundedPath(r.polygon)} fill={`url(#terrain-${r.terrain})`} filter="url(#shore)" />
                 <g clipPath={`url(#cp-${r.id})`}>
+                  <rect x={r.center[0] - 60} y={r.center[1] - 60} width={120} height={120}
+                    fill="url(#grain)" opacity={0.5} style={{ mixBlendMode: 'overlay' }} pointerEvents="none" />
                   {r.faction && r.faction !== 'neutral' && (
                     <FactionMark side={r.faction} x={r.center[0] - 15} y={r.center[1] + 11} />
                   )}
