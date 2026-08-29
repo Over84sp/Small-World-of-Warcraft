@@ -6,6 +6,7 @@
  * (and Android renders ⚓ and ★ at wildly different weights), so they are all
  * real SVG paths now, each on a coloured disc so it reads on any terrain.
  */
+import React from 'react'
 import type { RegionData, Side, Terrain } from '../game/types'
 
 /* ------------------------------------------------------------- sampling */

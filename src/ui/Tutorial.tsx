@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   autoRedeploy, conquer, conquestCost, createGame, defenseOf, factionLabel,
   goIntoDecline, placeToken, regionsOf, scoreFor, selectCombo, startRedeploy,

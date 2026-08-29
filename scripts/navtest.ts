@@ -10,7 +10,7 @@ const chk = (c: boolean, m: string) => { console.log((c ? '  OK  ' : '  FAIL') +
 const snaps: Record<number, GameState> = {}
 let armed = true
 let step = 0
-let state = createGame([{ name: 'Tú', isBot: false }, { name: 'Horda', isBot: true }], 20260828, 'kalimdor')
+let state = createGame([{ name: 'Tú', isBot: false }, { name: 'Horda', isBot: true }], 20260828, 'small_a')
 state.phase = 'pick'
 
 function enterStep(i: number, back = false) {
@@ -52,15 +52,15 @@ enterStep(3)
 const f = state.factions[state.players[0].activeUid!]
 if (f) f.hand = 9
 snaps[3] = structuredClone(state)
-conquer(state, 'durotar')
-chk(state.regions['durotar'].owner === f.uid, 'conquista Durotar')
+conquer(state, 'sa6')
+chk(state.regions['sa6'].owner === f.uid, 'conquista Llanos Mulgore')
 enterStep(4); enterStep(3, true)
-chk(state.regions['durotar'].owner === null, 'REBOBINA: Durotar vuelve a estar vacía')
+chk(state.regions['sa6'].owner === null, 'REBOBINA: Llanos Mulgore vuelve a estar vacía')
 chk(!tick(), 'y tampoco auto-avanza')
 
 // ---- recorrer todos los pasos adelante sin romperse ----
 snaps[0] = undefined as never
-let s2 = createGame([{ name: 'Tú', isBot: false }, { name: 'H', isBot: true }], 7, 'kalimdor')
+let s2 = createGame([{ name: 'Tú', isBot: false }, { name: 'H', isBot: true }], 7, 'small_a')
 s2.phase = 'pick'
 for (let i = 0; i < STEPS.length; i++) {
   try { STEPS[i].setup?.(s2); STEPS[i].spotlight?.(s2); STEPS[i].done?.(s2) }

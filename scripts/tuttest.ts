@@ -6,12 +6,13 @@ const setR=(s:GameState,id:string,o:string|null,t:number)=>{s.regions[id]={owner
 let ok=true
 const chk=(c:boolean,m:string)=>{console.log((c?'  OK  ':'  FAIL')+'  '+m); if(!c) ok=false}
 
-const s = createGame([{name:'Tú',isBot:false},{name:'Horda',isBot:true}], 20260828, 'kalimdor')
+// small_a oficial
+const s = createGame([{name:'Tú',isBot:false},{name:'Horda',isBot:true}], 20260828, 'small_a')
 s.phase='pick'
-s.legendary=[] // limpiar aleatorias para test determinista
+s.legendary=[]
 
-// step: board
-setR(s,'winterspring','lost-tribe',1); setR(s,'felwood','lost-tribe',1)
+// step: board - sa7 y sa3 con tribu
+setR(s,'sa7','lost-tribe',1); setR(s,'sa3','lost-tribe',1)
 
 // step: pick
 s.tray[0]={raceId:'humans',powerId:'merchant',bonusCoins:0}
@@ -19,47 +20,47 @@ selectCombo(s,0)
 chk(!!s.players[0].activeUid,'elige Humanos Mercaderes')
 const f=()=>s.factions[s.players[0].activeUid!]
 
-// step: first conquest
+// step: first conquest sa6
 if(regionsOf(s,f().uid).length===0) f().hand=20
 console.log('  ..   ejército del tutorial: 20 fichas (anunciado en pantalla)')
-let i=conquestCost(s,'durotar'); chk(i.reachable&&i.cost===3,`Durotar por mar (2 base + 1 desembarco), coste ${i.cost} (esperado 3)`)
-chk(conquer(s,'durotar').ok,'conquista Durotar')
+let i=conquestCost(s,'sa6'); chk(i.reachable&&i.cost===3,`Llanos Mulgore por mar (2 base + 1 desembarco), coste ${i.cost} (esperado 3)`)
+chk(conquer(s,'sa6').ok,'conquista Llanos Mulgore')
 
-// step: adjacency
-i=conquestCost(s,'azshara'); chk(i.reachable&&i.cost===2,`Azshara adyacente, coste ${i.cost} (esperado 2)`)
-chk(conquer(s,'azshara').ok,'conquista Azshara')
+// step: adjacency sa4 (central, patria alianza)
+i=conquestCost(s,'sa4'); chk(i.reachable&&i.cost===1,`Bosque Elwynn adyacente patria, coste ${i.cost} (esperado 1)`)
+chk(conquer(s,'sa4').ok,'conquista Bosque Elwynn')
 
-// step: legendary (nuevo)
-s.legendary=[{defId:'dark_portal', regionId:'nbarrens', revealed:false, isArtifact:false}]
-i=conquestCost(s,'nbarrens'); chk(i.reachable&&i.cost===2,`Northern Barrens con loseta boca abajo, coste ${i.cost} (esperado 2)`)
-chk(conquer(s,'nbarrens').ok,'conquista Northern Barrens y revela Portal Oscuro')
+// step: legendary sa2
+s.legendary=[{defId:'dark_portal', regionId:'sa2', revealed:false, isArtifact:false}]
+i=conquestCost(s,'sa2'); chk(i.reachable&&i.cost===1,`Campos Westfall con loseta boca abajo patria, coste ${i.cost} (esperado 1)`)
+chk(conquer(s,'sa2').ok,'conquista Campos Westfall y revela Portal Oscuro')
 chk(s.legendary[0].revealed,'loseta revelada')
-chk(f().hand===13,`tras Durotar+Azshara+Northern Barrens quedan ${f().hand} fichas (20-3-2-2=13)`)
+chk(f().hand===15,`tras 3 conquistas quedan ${f().hand} fichas (20-3-1-1=15)`)
 
-// step: mountain
-i=conquestCost(s,'hyjal'); chk(i.reachable&&i.cost===3,`Hyjal montaña, coste ${i.cost} (esperado 3)`)
-chk(conquer(s,'hyjal').ok,'conquista Monte Hyjal')
+// step: mountain sa1
+i=conquestCost(s,'sa1'); chk(i.reachable&&i.cost===3,`Cima Vigía montaña, coste ${i.cost} (esperado 3)`)
+chk(conquer(s,'sa1').ok,'conquista Cima Vigía')
 
-// step: lost tribe  (SIN rellenar la mano: debe salir la cuenta sola)
-chk(f().hand===10,`tras Hyjal quedan ${f().hand} fichas (13-3=10)`)
-i=conquestCost(s,'felwood'); chk(i.reachable&&i.cost===3,`Felwood tribu perdida, coste ${i.cost} (esperado 3)`)
-chk(conquer(s,'felwood').ok,'somete Felwood')
+// step: lost tribe sa3
+chk(f().hand===12,`tras Cima quedan ${f().hand} fichas (15-3=12)`)
+i=conquestCost(s,'sa3'); chk(i.reachable&&i.cost===3,`Colinas Hillsbrad tribu perdida, coste ${i.cost} (esperado 3)`)
+chk(conquer(s,'sa3').ok,'somete Colinas Hillsbrad')
 
-// step: combat
+// step: combat sa5
 s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'berserk',inDecline:false,hand:0,markers:0}
 s.players[1].activeUid=HORDE
-setR(s,'ashenvale',HORDE,2)
-chk(f().hand===7,`tras Felwood quedan ${f().hand} fichas (10-3=7)`)
-i=conquestCost(s,'ashenvale'); chk(i.reachable&&i.cost===3&&i.homeland===true,`Ashenvale con 2 defensores en patria de la Alianza, coste ${i.cost} (esperado 3 = 2+2-1)`)
-chk(conquer(s,'ashenvale').ok,'expulsa a la Horda')
+setR(s,'sa5',HORDE,2)
+chk(f().hand===9,`tras Hillsbrad quedan ${f().hand} fichas (12-3=9)`)
+i=conquestCost(s,'sa5'); chk(i.reachable&&i.cost===4&&i.homeland===true,`Crestagrana con 2 defensores en patria + montaña, coste ${i.cost} (esperado 4 = 2+2+1-1)`)
+chk(conquer(s,'sa5').ok,'expulsa a la Horda')
 chk(s.turn.pendingReturns[HORDE]===1,'el defensor recupera 1 ficha (pierde 1)')
 
-chk(f().hand===4,`tras Ashenvale quedan ${f().hand} fichas (7-3=4)`)
+chk(f().hand===5,`tras Crestagrana quedan ${f().hand} fichas (9-4=5)`)
 
-// step: dice  (staging deliberado y anunciado)
-f().hand=3
-i=conquestCost(s,'winterspring'); chk(i.reachable&&i.cost===4,`Winterspring montaña+tribu, coste ${i.cost} (esperado 4)`)
-const roll=conquer(s,'winterspring',true)
+// step: dice sa7 tribu -> forzamos dado con mano 2 vs coste 3
+f().hand=2
+i=conquestCost(s,'sa7'); chk(i.reachable&&i.cost===3,`Pantano Zánganos tribu, coste ${i.cost} (esperado 3)`)
+const roll=conquer(s,'sa7',true)
 chk(s.turn.diceUsed===1,`dado lanzado (sacó ${roll.rolled}, ${roll.ok?'éxito':'fallo'}) — el paso avanza igual`)
 
 // step: redeploy
@@ -71,7 +72,7 @@ chk(f().hand===0,'reparte todas las fichas')
 // step: score
 const sc=scoreFor(s,0)
 chk(sc.total>0,`puntúa ${sc.total} monedas -> ${sc.detail.join(' | ')}`)
-chk(sc.detail.some(d=>d.includes('Botín de facción: +3')),'el botín de Durotar, Azshara y Northern Barrens (Horda) aparece: +3')
+chk(sc.detail.some(d=>d.includes('Botín de facción: +1')),'el botín de Llanos Mulgore (Horda) aparece: +1')
 chk(sc.detail.some(d=>d.includes('Portal Oscuro')),`Portal Oscuro aparece en puntuación: ${sc.detail.join(' | ')}`)
 
 // step: decline
