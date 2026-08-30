@@ -9,7 +9,7 @@ import { clearSave, loadGame, saveGame } from './game/save'
 import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities'
 import { LEGENDARY_BY_ID } from './game/legendary'
 import type { GameState } from './game/types'
-import { MapView } from './ui/MapView'
+import { MapView, type BattleAnim } from './ui/MapView'
 import { FactionIcon, LegendaryIcon } from './ui/mapArt'
 import { Setup, type SetupResult } from './ui/Setup'
 import { Tutorial } from './ui/Tutorial'
@@ -32,6 +32,11 @@ export default function App() {
   const [bombMode, setBombMode] = useState(false)
   const [objectiveMode, setObjectiveMode] = useState(false)
   const [intimidateMode, setIntimidateMode] = useState(false)
+  const [battle, setBattle] = useState<BattleAnim | null>(null)
+  const battleTimer = useRef<number | null>(null)
+  // conquests already narrated during the current bot turn: the first gets a
+  // long pause so the animation can play, the rest keep the game moving
+  const botConquests = useRef(0)
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
   const [confirmMode, setConfirmMode] = useState(isTouch)
@@ -113,19 +118,67 @@ export default function App() {
   const player = state?.players[state.current]
   const isBotTurn = !!player?.isBot && state?.phase !== 'gameover'
 
+  /** narrate a conquest: rings on the region + a cost-breakdown panel */
+  const showBattle = useCallback((b: BattleAnim) => {
+    setBattle(b)
+    if (battleTimer.current) window.clearTimeout(battleTimer.current)
+    battleTimer.current = window.setTimeout(() => setBattle(null), 2700)
+  }, [])
+
+  /** human readable cost breakdown of a conquest, from the pre-conquest state */
+  const battleParts = (s: GameState, regionId: string, info: ReturnType<typeof conquestCost>): [string, number][] => {
+    const parts: [string, number][] = [['base', 2]]
+    const def = defenseOf(s, regionId)
+    if (def > 0) parts.push(['defensa', def])
+    if (info.viaSea) parts.push(['desembarco', 1])
+    if (info.homeland) parts.push(['patria', -1])
+    if (info.ethereal) parts.push(['etéreos', -2])
+    if (s.turn.worgenForm === 'werewolf') parts.push(['huargo', -1])
+    const listed = parts.reduce((a, [, v]) => a + v, 0)
+    const rest = info.cost - listed
+    if (rest !== 0) parts.push(['poderes', rest])
+    return parts
+  }
+
   // ---- bot driver -------------------------------------------------------
   useEffect(() => {
     if (!state || !isBotTurn || screen !== 'game') return
     if (history.length) setHistory([])
+    const s0 = stateRef.current!
+    if (s0.turn.conquered.length === 0) botConquests.current = 0
+    const action = chooseAction(structuredClone(s0))
+    let delay = 750
+    if (action.kind === 'conquer') {
+      const info = conquestCost(s0, action.regionId)
+      if (info.reachable) {
+        showBattle({
+          key: Date.now(),
+          regionId: action.regionId,
+          attackerPid: s0.current,
+          attackerUid: s0.players[s0.current].activeUid,
+          parts: battleParts(s0, action.regionId, info),
+          total: action.champion ? 1 : info.cost,
+          champion: action.champion ?? false,
+          useDie: action.useDie,
+        })
+      }
+      const first = botConquests.current === 0
+      botConquests.current += 1
+      delay = first ? (action.champion ? 2200 : 2700) : 1800
+    } else if (action.kind === 'decline') {
+      delay = 1300
+    } else if (action.kind === 'endTurn' || action.kind === 'peace') {
+      delay = 950
+    }
     botTimer.current = window.setTimeout(() => {
       act((s) => {
-        applyBotAction(s, chooseAction(s))
+        applyBotAction(s, action)
       })
-    }, 650)
+    }, delay)
     return () => {
       if (botTimer.current) window.clearTimeout(botTimer.current)
     }
-  }, [state, isBotTurn, act, screen]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, isBotTurn, act, screen, showBattle]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // autosave: the engine state is plain JSON, so this is just a stringify
   useEffect(() => {
@@ -178,6 +231,19 @@ export default function App() {
     activeFaction.hand >= 1 && !!selInfo?.reachable && selInfo.cost > activeFaction.hand
 
   const doConquer = (id: string) => {
+    const info = conquestCost(state, id)
+    if (info.reachable) {
+      showBattle({
+        key: Date.now(),
+        regionId: id,
+        attackerPid: player.id,
+        attackerUid: activeFaction?.uid ?? null,
+        parts: battleParts(state, id, info),
+        total: info.cost,
+        champion: false,
+        useDie: false,
+      })
+    }
     act((s) => {
       const res = conquer(s, id, false)
       if (!res.ok) setFlash(res.message)
@@ -240,6 +306,19 @@ export default function App() {
 
   const doDie = () => {
     if (!selected) return
+    const info = conquestCost(state, selected)
+    if (info.reachable) {
+      showBattle({
+        key: Date.now(),
+        regionId: selected,
+        attackerPid: player.id,
+        attackerUid: activeFaction?.uid ?? null,
+        parts: battleParts(state, selected, info),
+        total: info.cost,
+        champion: false,
+        useDie: true,
+      })
+    }
     act((s) => {
       const res = conquer(s, selected, true)
       setFlash(res.rolled != null ? `🎲 Dado: ${res.rolled} — ${res.message}` : res.message)
@@ -434,6 +513,16 @@ export default function App() {
                     {selInfo.champion && (
                       <div className="confirmrow">
                         <button className="primary" onClick={() => {
+                          showBattle({
+                            key: Date.now(),
+                            regionId: selRegion.id,
+                            attackerPid: player.id,
+                            attackerUid: activeFaction?.uid ?? null,
+                            parts: [],
+                            total: 1,
+                            champion: true,
+                            useDie: false,
+                          })
                           act((s) => {
                             const res = conquer(s, selRegion.id, false, true)
                             if (!res.ok) setFlash(res.message)
@@ -600,6 +689,7 @@ export default function App() {
           highlightTargets={state.phase === 'conquer' && !isBotTurn}
           markerMode={markerMode}
           compact={isMobile}
+          battle={battle}
         />
         {flash && <div className="flash">{flash}</div>}
         {isBotTurn && <div className="thinking">{player.name} está pensando…</div>}

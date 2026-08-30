@@ -14,6 +14,21 @@ interface Props {
   spotlight?: string[] | null
   /** bigger text / tokens for phones */
   compact?: boolean
+  /** conquest being narrated with the battle animation */
+  battle?: BattleAnim | null
+}
+
+/** a conquest worth narrating: cost breakdown, dice and outcome */
+export interface BattleAnim {
+  key: number
+  regionId: string
+  attackerPid: number
+  /** uid of the conquering faction, to detect the outcome from live state */
+  attackerUid: string | null
+  parts: [string, number][]
+  total: number
+  champion: boolean
+  useDie: boolean
 }
 
 function roundedPath(points: [number, number][], r = 3.5) {
@@ -53,7 +68,7 @@ const IDENTITY: View = { k: 1, tx: 0, ty: 0 }
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 
 export function MapView({
-  state, selected, onSelect, highlightTargets, markerMode, spotlight, compact,
+  state, selected, onSelect, highlightTargets, markerMode, spotlight, compact, battle,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [view, setView] = useState<View>(IDENTITY)
@@ -310,17 +325,20 @@ export function MapView({
                   {/* ownership reads as a coloured band hugging the border, so the
                       terrain underneath stays identifiable at a glance */}
                   {pid !== null && (
-                    <path d={roundedPath(r.polygon)} fill="none"
+                    <path className="band" d={roundedPath(r.polygon)} fill="none"
                       stroke={PLAYER_COLORS[pid]} strokeWidth={9}
                       strokeDasharray={state.factions[owner!]?.inDecline ? '7 5' : undefined}
                       opacity={state.factions[owner!]?.inDecline ? 0.55 : 0.95} />
                   )}
                   {owner === LOST_TRIBE && (
-                    <path d={roundedPath(r.polygon)} fill="none" stroke="#11181f" strokeWidth={9} opacity={0.5} />
+                    <path className="band" d={roundedPath(r.polygon)} fill="none" stroke="#11181f" strokeWidth={9} opacity={0.5} />
                   )}
                 </g>
                 {pid !== null && (
-                  <path d={roundedPath(r.polygon)} fill={PLAYER_COLORS[pid]} opacity={0.12} />
+                  <path className="bandFill" d={roundedPath(r.polygon)} fill={PLAYER_COLORS[pid]} opacity={0.12} />
+                )}
+                {battle?.regionId === r.id && (
+                  <path className="battleFlash" d={roundedPath(r.polygon)} fill="#ffffff" pointerEvents="none" />
                 )}
                 <path d={roundedPath(r.polygon)} fill="url(#sheen)" pointerEvents="none" />
                 <path className="outline" d={roundedPath(r.polygon)} fill="none" stroke="#0d1620" strokeWidth={1.2} />
@@ -359,10 +377,12 @@ export function MapView({
                   ))
                 })()}
                 {st.owner && (
-                  <g transform={`translate(${cx}, ${cy + s(11)})`}>
-                    <circle r={s(8.5)} fill={st.owner === LOST_TRIBE ? '#2f3a44' : PLAYER_COLORS[pid!]}
-                      stroke="#0b1219" strokeWidth={s(1.4)} opacity={decline ? 0.65 : 1} />
-                    <text className="tokens" y={s(3.4)} fontSize={s(9.5)}>{st.tokens}</text>
+                  <g key={`tok-${st.tokens}`} transform={`translate(${cx}, ${cy + s(11)})`}>
+                    <g className="tokenPop">
+                      <circle className="tokenFill" r={s(8.5)} fill={st.owner === LOST_TRIBE ? '#2f3a44' : PLAYER_COLORS[pid!]}
+                        stroke="#0b1219" strokeWidth={s(1.4)} opacity={decline ? 0.65 : 1} />
+                      <text className="tokens" y={s(3.4)} fontSize={s(9.5)}>{st.tokens}</text>
+                    </g>
                   </g>
                 )}
                 {targets[r.id] && (
@@ -387,6 +407,57 @@ export function MapView({
               </g>
             )
           })}
+
+          {/* ---- conquest narration: rings on the region + an explainer panel ---- */}
+          {battle && (() => {
+            const reg = regions.find((x) => x.id === battle.regionId)
+            if (!reg) return null
+            const [cx, cy] = reg.center
+            const attacker = state.players[battle.attackerPid]
+            const stB = state.regions[battle.regionId]
+            const won = !!battle.attackerUid && stB.owner === battle.attackerUid
+            const failed = !won && state.turn.assaultFailed
+            const rolling = battle.useDie && !won && !failed
+            const color = PLAYER_COLORS[battle.attackerPid]
+            const above = cy - s(64) > viewBox.y0
+            const py = above ? cy - s(33) : cy + s(40)
+            const lines: { t: string; c: string; fs: number; bold?: boolean }[] = []
+            lines.push({ t: `⚔ ${attacker.name} → ${reg.name}`, c: color, fs: s(6.6), bold: true })
+            if (battle.champion) {
+              lines.push({ t: '🗡 Carga del Campeón: 1 ficha, la defensa no cuenta', c: '#ffd964', fs: s(5.9) })
+            } else {
+              for (let i = 0; i < battle.parts.length; i += 3) {
+                const chunk = battle.parts.slice(i, i + 3)
+                  .map(([l, v]) => (v < 0 ? `${v} ${l}` : `${v} ${l}`)).join('  ·  ')
+                lines.push({ t: chunk, c: '#c8d6e2', fs: s(5.7) })
+              }
+              lines.push({ t: `= ${battle.total} fichas`, c: '#ffd964', fs: s(6.4), bold: true })
+            }
+            if (won) lines.push({ t: '✓ ¡Conquistada!', c: '#7fe3a1', fs: s(6.6), bold: true })
+            else if (failed) lines.push({ t: '✗ Asalto fallido: fin de las conquistas', c: '#ff9c8a', fs: s(6.1) })
+            else if (rolling) lines.push({ t: `🎲 Dado: ${state.turn.diceLast ?? '…'}`, c: '#ffd964', fs: s(6.1) })
+            const w = Math.max(...lines.map((l) => l.t.length)) * s(3.5) + s(16)
+            const h = lines.length * s(9.2) + s(5)
+            return (
+              <g key={battle.key} className="battle" pointerEvents="none">
+                <g transform={`translate(${cx} ${cy})`}>
+                  <circle className="battleRing" r={s(9)} fill="none" stroke={color} strokeWidth={s(2.4)} />
+                  <circle className="battleRing" style={{ animationDelay: '.5s' }} r={s(9)} fill="none" stroke={color} strokeWidth={s(1.7)} />
+                  <circle r={s(13)} fill="none" stroke={color} strokeWidth={s(0.8)} opacity={0.35} />
+                </g>
+                <g transform={`translate(${cx} ${py})`}>
+                  <g className="battlePanel">
+                    <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={s(4)}
+                      fill="#0d1620" opacity={0.94} stroke={color} strokeWidth={s(1)} />
+                    {lines.map((l, i) => (
+                      <text key={i} x={0} y={-h / 2 + s(10) + i * s(9.2)} textAnchor="middle"
+                        fontSize={l.fs} fill={l.c} fontWeight={l.bold ? 800 : 500}>{l.t}</text>
+                    ))}
+                  </g>
+                </g>
+              </g>
+            )
+          })()}
         </g>
       </svg>
 
