@@ -2,7 +2,7 @@ import { createGame, selectCombo, conquer, conquestCost, startRedeploy, autoRede
 import type { GameState } from '../src/game/types'
 
 const HORDE='tut-horde'
-const setR=(s:GameState,id:string,o:string|null,t:number)=>{s.regions[id]={owner:o,tokens:t,fortress:0,hero:false}}
+const setR=(s:GameState,id:string,o:string|null,t:number)=>{s.regions[id]={owner:o,tokens:t,fortress:0,hero:false,wisp:0,bomb:false,mo:false}}
 let ok=true
 const chk=(c:boolean,m:string)=>{console.log((c?'  OK  ':'  FAIL')+'  '+m); if(!c) ok=false}
 

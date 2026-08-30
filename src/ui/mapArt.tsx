@@ -137,6 +137,9 @@ const DENSITY: Record<Terrain, { n: number; gap: number }> = {
   fields: { n: 12, gap: 9 },
   swamp: { n: 9, gap: 10 },
   wasteland: { n: 8, gap: 11 },
+  lake: { n: 0, gap: 10 },
+  cave: { n: 6, gap: 12 },
+  magic: { n: 7, gap: 11 },
 }
 
 const decorCache = new Map<string, React.ReactNode>()
@@ -163,7 +166,7 @@ function starPath(outer: number, inner: number, points = 5) {
   return d + 'Z'
 }
 
-export type BadgeKind = 'anchor' | 'landmark' | 'mountain' | 'fortress' | 'hero' | 'tribe'
+export type BadgeKind = 'anchor' | 'landmark' | 'mountain' | 'fortress' | 'hero' | 'tribe' | 'wisp' | 'bomb' | 'objective'
 
 const GLYPH: Record<BadgeKind, { bg: string; ring: string; node: React.ReactNode }> = {
   // anchor: unmistakable silhouette — ring, crossbar, hooked base
@@ -219,6 +222,39 @@ const GLYPH: Record<BadgeKind, { bg: string; ring: string; node: React.ReactNode
       </g>
     ),
   },
+  // night-elf wisp wall: a soft glowing wisp flame
+  wisp: {
+    bg: '#2e5d6e', ring: '#bfeaff',
+    node: (
+      <g>
+        <path d="M0 -7 C3.4 -3.6 4.6 -1.4 4.6 1 A4.6 4.6 0 0 1 -4.6 1 C-4.6 -1.4 -3.4 -3.6 0 -7 Z"
+          fill="#c9f0ff" stroke="#123a49" strokeWidth={0.8} />
+        <circle cx={0} cy={1.6} r={1.9} fill="#eefaff" />
+      </g>
+    ),
+  },
+  // goblin bomb: black sphere with a sparking fuse
+  bomb: {
+    bg: '#3a2530', ring: '#ffb37a',
+    node: (
+      <g>
+        <circle cx={-0.6} cy={1.6} r={4.6} fill="#1c141a" stroke="#ffb37a" strokeWidth={0.9} />
+        <path d="M2.6 -1.8 Q4.4 -4.2 6.2 -4.6" stroke="#c9a06a" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+        <path d="M6.4 -5.8 L7.6 -3.6 M5.2 -5.4 L7.8 -5.2" stroke="#ffd964" strokeWidth={1.1} strokeLinecap="round" />
+      </g>
+    ),
+  },
+  // human military objective: crosshair target
+  objective: {
+    bg: '#7a5c14', ring: '#ffe9a8',
+    node: (
+      <g stroke="#ffd964" strokeWidth={1.4} fill="none" strokeLinecap="round">
+        <circle r={4.6} />
+        <circle r={1.4} fill="#ffd964" stroke="none" />
+        <path d="M0 -7.4 V-5.4 M0 5.4 V7.4 M-7.4 0 H-5.4 M5.4 0 H7.4" />
+      </g>
+    ),
+  },
 }
 
 export function Badge({ kind, x, y, r }: { kind: BadgeKind; x: number; y: number; r: number }) {
@@ -235,7 +271,7 @@ export function Badge({ kind, x, y, r }: { kind: BadgeKind; x: number; y: number
 /** which badges a region shows, in a stable order */
 export function badgesFor(
   region: RegionData,
-  st: { fortress: number; hero: boolean; owner: string | null },
+  st: { fortress: number; hero: boolean; owner: string | null; wisp?: number; bomb?: boolean; mo?: boolean },
 ): BadgeKind[] {
   const out: BadgeKind[] = []
   if (region.mountain) out.push('mountain')
@@ -244,6 +280,9 @@ export function badgesFor(
   if (st.owner === 'lost-tribe') out.push('tribe')
   if (st.fortress > 0) out.push('fortress')
   if (st.hero) out.push('hero')
+  if ((st.wisp ?? 0) > 0) out.push('wisp')
+  if (st.bomb) out.push('bomb')
+  if (st.mo) out.push('objective')
   return out
 }
 

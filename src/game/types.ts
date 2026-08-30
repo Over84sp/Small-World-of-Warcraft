@@ -1,6 +1,9 @@
 export type Side = 'alliance' | 'horde' | 'neutral'
 
-export type Terrain = 'fields' | 'forest' | 'hills' | 'mountains' | 'swamp' | 'wasteland'
+export type Terrain =
+  | 'fields' | 'forest' | 'hills' | 'mountains' | 'swamp' | 'wasteland'
+  // terrain types from the official boards, pending map regeneration (block 4)
+  | 'lake' | 'cave' | 'magic'
 
 export interface RegionData {
   id: string
@@ -26,6 +29,12 @@ export interface RegionState {
   /** fortresses / watchtowers add permanent defense */
   fortress: number
   hero: boolean
+  /** night-elf wisp wall: +1 defense, survives decline, discarded on conquest */
+  wisp: number
+  /** goblin bomb waiting to be resolved at the goblin player's next turn */
+  bomb: boolean
+  /** human military objective: +2 coins to whoever conquers it */
+  mo: boolean
 }
 
 export interface FactionState {
@@ -38,6 +47,10 @@ export interface FactionState {
   hand: number
   /** hero / fortress markers still available */
   markers: number
+  /** night-elf wisp walls still available (race token pool) */
+  wispWalls: number
+  /** goblin bombs still available (race token pool) */
+  bombs: number
 }
 
 export interface PlayerState {
@@ -50,6 +63,8 @@ export interface PlayerState {
   declineUid: string | null
   /** set by the Diplomat power */
   peaceWith: number | null
+  /** pandaren harmony tokens held: attacking active Pandaren costs 2 coins */
+  harmony: number
 }
 
 export interface Combo {
@@ -75,6 +90,21 @@ export interface TurnState {
   attacked: number[]
   /** tokens owed back to opponents after this turn */
   pendingReturns: Record<string, number>
+  /* ---- race-specific per-turn state (official races, block 1) ---- */
+  /** worgen form chosen this turn; null = not chosen yet (treated as human) */
+  worgenForm: 'human' | 'werewolf' | null
+  /** draenei: the first token they would lose each turn is redeployed instead */
+  draeneiSaved: boolean
+  /** ethereals: their once-per-turn legendary discount */
+  etherealUsed: boolean
+  /** gnomes: their once-per-turn aerial assault */
+  airstrikeUsed: boolean
+  /** forsaken: enemy tokens discarded by their conquests this turn */
+  souls: number
+  /** players who conquered active Pandaren regions this turn (get no harmony) */
+  pandarenStruck: number[]
+  /** human military objectives placed this turn (max 2) */
+  moPlaced: number
 }
 
 export interface LogEntry {
@@ -142,4 +172,6 @@ export interface Ability {
   extraDice?: number
   /** may go into decline immediately after conquering */
   declineAfterConquest?: boolean
+  /** once per turn, may conquer one non-adjacent region (gnomes' aerial assault) */
+  airstrike?: boolean
 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  BOARDS, REGION_BY_ID, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
+  BOARDS, REGION_BY_ID, abilitiesOf, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
   conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
-  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, placeMarker, placeToken, plunderThisTurn, regionsOf,
-  scoreFor, selectCombo, setPeace, sideOf, startRedeploy,
+  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, placeBomb, placeMarker, placeObjective, placeToken,
+  plunderThisTurn, regionsOf, salvageSouls, scoreFor, selectCombo, setPeace, setWorgenForm, sideOf, startRedeploy,
 } from './game/engine'
 import { clearSave, loadGame, saveGame } from './game/save'
 import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities'
@@ -29,6 +29,8 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [markerMode, setMarkerMode] = useState(false)
+  const [bombMode, setBombMode] = useState(false)
+  const [objectiveMode, setObjectiveMode] = useState(false)
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
   const [confirmMode, setConfirmMode] = useState(isTouch)
@@ -64,6 +66,8 @@ export default function App() {
       setState(h[h.length - 1])
       setSelected(null)
       setMarkerMode(false)
+      setBombMode(false)
+      setObjectiveMode(false)
       return h.slice(0, -1)
     })
   }
@@ -72,6 +76,8 @@ export default function App() {
     setHistory([])
     setSelected(null)
     setMarkerMode(false)
+    setBombMode(false)
+    setObjectiveMode(false)
   }
 
   const abandonGame = () => {
@@ -137,6 +143,8 @@ export default function App() {
         if (rules) { setRules(false); return }
         setSelected(null)
         setMarkerMode(false)
+        setBombMode(false)
+        setObjectiveMode(false)
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
@@ -157,7 +165,9 @@ export default function App() {
   const owned = activeFaction ? regionsOf(state, activeFaction.uid) : []
   const selInfo = selected ? conquestCost(state, selected) : null
   const selRegion = selected ? REGION_BY_ID[selected] : null
-  const maxDice = 1 + (activeFaction?.powerId === 'berserk' ? 1 : 0)
+  const maxDice = 1 + (activeFaction
+    ? (abilitiesOf(activeFaction).find((a) => a.extraDice)?.extraDice ?? 0)
+    : 0)
   const canAffordSel = !!activeFaction && !!selInfo?.reachable && selInfo.cost <= activeFaction.hand
   const canRollDie =
     !!activeFaction && state.phase === 'conquer' && state.turn.diceUsed < maxDice &&
@@ -176,6 +186,26 @@ export default function App() {
     if (markerMode) {
       act((s) => placeMarker(s, id), true)
       setMarkerMode(false)
+      return
+    }
+    if (bombMode) {
+      const test = structuredClone(state)
+      if (placeBomb(test, id)) {
+        act((s) => { placeBomb(s, id) }, true)
+      } else {
+        setFlash('Ahí no puedes pegar una bomba: ha de ser una región rival activa adyacente a la tuya')
+      }
+      setBombMode(false)
+      return
+    }
+    if (objectiveMode) {
+      const test = structuredClone(state)
+      if (placeObjective(test, id)) {
+        act((s) => { placeObjective(s, id) }, true)
+      } else {
+        setFlash('Objetivo inválido: marca regiones que NO controles (máximo 2 por turno)')
+      }
+      setObjectiveMode(false)
       return
     }
     if (state.phase === 'redeploy') {
@@ -244,6 +274,8 @@ export default function App() {
                 <span>En mano <strong>{activeFaction.hand}</strong></span>
                 <span>Regiones <strong>{owned.length}</strong></span>
                 {activeFaction.markers > 0 && <span>Marcadores <strong>{activeFaction.markers}</strong></span>}
+                {activeFaction.bombs > 0 && <span>💣 <strong>{activeFaction.bombs}</strong></span>}
+                {activeFaction.wispWalls > 0 && <span>✨ <strong>{activeFaction.wispWalls}</strong></span>}
               </div>
               <p className="ftext">▸ {RACE_BY_ID[activeFaction.raceId]?.text}</p>
               <p className="ftext">▸ {POWER_BY_ID[activeFaction.powerId]?.text}</p>
@@ -260,6 +292,11 @@ export default function App() {
           {activeFaction && plunderThisTurn(state, activeFaction).length > 0 && (
             <div className="plunder">
               ⚔ Botín de facción este turno: <strong>+{plunderThisTurn(state, activeFaction).length}</strong> 🪙
+            </div>
+          )}
+          {player.harmony > 0 && (
+            <div className="plunder">
+              🕊 Tienes <strong>Armonía</strong>: conquistar una región Pandaren activa te cuesta 2 monedas.
             </div>
           )}
           {state.legendary.filter(t => t.revealed).length > 0 && (
@@ -286,6 +323,21 @@ export default function App() {
           )}
           <div className="preview">Si acabas ahora: <strong>{preview.total}</strong> 🪙</div>
         </section>
+
+        {!isBotTurn && state.phase === 'conquer' && activeFaction?.raceId === 'worgen' && !state.turn.worgenForm && (
+          <section className="card diplo">
+            <h3>Forma Huargen</h3>
+            <p className="hint">Elige tu forma para este turno (al acabar el turno sin elegir cuentas como humano).</p>
+            <div className="diplolist">
+              <button onClick={() => act((s) => setWorgenForm(s, 'human'), true)}>
+                🧑 <strong>Humano</strong> · +2 monedas al puntuar
+              </button>
+              <button onClick={() => act((s) => setWorgenForm(s, 'werewolf'), true)}>
+                🐺 <strong>Huargo</strong> · conquistas −1 ficha, −1 moneda al puntuar
+              </button>
+            </div>
+          </section>
+        )}
 
         {state.phase === 'pick' && !isBotTurn && (
           <section className="card">
@@ -435,7 +487,7 @@ export default function App() {
               {owned.map((r) => (
                 <div key={r.id} className="deployrow">
                   <span>{r.name}</span>
-                  <button onClick={() => act((s) => placeToken(s, r.id, -1), true)} disabled={state.regions[r.id].tokens <= 1}>−</button>
+                  <button onClick={() => act((s) => placeToken(s, r.id, -1), true)} disabled={state.regions[r.id].tokens <= (activeFaction.raceId === 'tauren' ? 2 : 1)}>−</button>
                   <strong>{state.regions[r.id].tokens}</strong>
                   <button onClick={() => act((s) => placeToken(s, r.id, 1), true)} disabled={activeFaction.hand <= 0}>+</button>
                 </div>
@@ -445,6 +497,25 @@ export default function App() {
               <button onClick={() => act((s) => autoRedeploy(s), true)}>Repartir automáticamente</button>
               <button className="primary" onClick={finishTurn}>Fin del turno</button>
             </div>
+            {(activeFaction.raceId === 'goblins' || activeFaction.raceId === 'humans' || (activeFaction.raceId === 'forsaken' && state.turn.souls > 0)) && (
+              <div className="actions">
+                {activeFaction.raceId === 'goblins' && activeFaction.bombs > 0 && (
+                  <button className={bombMode ? 'primary' : ''} onClick={() => setBombMode((v) => !v)}>
+                    💣 {bombMode ? 'Cancelar bomba' : 'Pegar bomba a región vecina'}
+                  </button>
+                )}
+                {activeFaction.raceId === 'humans' && state.turn.moPlaced < 2 && (
+                  <button className={objectiveMode ? 'primary' : ''} onClick={() => setObjectiveMode((v) => !v)}>
+                    🎯 {objectiveMode ? 'Cancelar objetivo' : `Marcar objetivo militar (${state.turn.moPlaced}/2)`}
+                  </button>
+                )}
+                {activeFaction.raceId === 'forsaken' && state.turn.souls > 0 && (
+                  <button onClick={() => act((s) => salvageSouls(s, 1), true)} disabled={player.coins < 1}>
+                    👻 Alma → ficha (1🪙) · {state.turn.souls} disponible{state.turn.souls > 1 ? 's' : ''}
+                  </button>
+                )}
+              </div>
+            )}
           </section>
         )}
 
@@ -503,6 +574,8 @@ export default function App() {
         {flash && <div className="flash">{flash}</div>}
         {isBotTurn && <div className="thinking">{player.name} está pensando…</div>}
         {markerMode && <div className="modehint">Elige una región tuya · <button onClick={() => setMarkerMode(false)}>Cancelar</button></div>}
+        {bombMode && <div className="modehint">💣 Elige una región rival activa adyacente a las tuyas · <button onClick={() => setBombMode(false)}>Cancelar</button></div>}
+        {objectiveMode && <div className="modehint">🎯 Marca una región que NO controles · <button onClick={() => setObjectiveMode(false)}>Cancelar</button></div>}
       </main>
 
       {isMobile ? (
@@ -533,10 +606,10 @@ export default function App() {
             </ol>
             <h3>Alianza y Horda</h3>
             <ul className="legend">
-              <li>Cada raza lucha bajo una bandera. Las razas <b>neutrales</b> (Múrlocs, Pandaren, Naga, Dragón Negro) son mercenarias.</li>
+              <li>Cada raza lucha bajo una bandera. Las razas <b>neutrales</b> (Etéreos, Kobolds, Pandaren y Naga) son mercenarias.</li>
               <li>🏳 Conquistar una región <b>de tu propia bandera</b> cuesta <b>1 ficha menos</b>: los tuyos se te unen.</li>
               <li>⚔ Conquistar una región <b>de la bandera enemiga</b> da <b>+1 moneda</b> de botín ese turno. Las razas neutrales saquean a los dos bandos.</li>
-              <li>Los <b>Orcos</b> cobran el botín <b>doble</b> sobre territorio de la Alianza.</li>
+              <li>Los <b>Orcos</b> cobran el botín <b>doble</b> sobre territorio de la Alianza. Los <b>Múrlocs</b> son los nativos del mapa (fichas grises).</li>
             </ul>
 
             <h3>Controles</h3>

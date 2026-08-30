@@ -1,7 +1,7 @@
 import {
-  REGION_BY_ID, autoRedeploy, canDeclineNow, comboTokens, conquer, conquestCost,
+  REGION_BY_ID, abilitiesOf, autoRedeploy, canDeclineNow, comboTokens, conquer, conquestCost,
   ctxOf, diplomacyOptions, endTurn, goIntoDecline, legalTargets, legendaryAt, needsDiplomacy,
-  ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, startRedeploy, sideOf } from '../game/engine'
+  ownerPlayer, placeMarker, regionsOf, scoreFor, selectCombo, setPeace, setWorgenForm, startRedeploy, sideOf } from '../game/engine'
 import { RACE_BY_ID, POWER_BY_ID, isEnemyRegion } from '../game/abilities'
 import { LEGENDARY_BY_ID } from '../game/legendary'
 import type { GameState } from '../game/types'
@@ -10,6 +10,7 @@ export type BotAction =
   | { kind: 'pick'; index: number; label: string }
   | { kind: 'conquer'; regionId: string; useDie: boolean; label: string }
   | { kind: 'marker'; regionId: string; label: string }
+  | { kind: 'worgen'; form: 'human' | 'werewolf'; label: string }
   | { kind: 'decline'; label: string }
   | { kind: 'peace'; targetId: number; label: string }
   | { kind: 'endTurn'; label: string }
@@ -87,6 +88,12 @@ export function chooseAction(state: GameState): BotAction {
   const f = state.factions[uid]
   const owned = regionsOf(state, uid)
 
+  // worgen pick a form right away: wolf when there is fighting to do
+  if (f.raceId === 'worgen' && !state.turn.worgenForm) {
+    const form: 'human' | 'werewolf' = f.hand >= 4 ? 'werewolf' : 'human'
+    return { kind: 'worgen', form, label: form === 'werewolf' ? 'adopta la forma de Huargo' : 'adopta forma humana' }
+  }
+
   // should we go into decline instead of fighting?
   if (canDeclineNow(state) && state.turn.conquered.length === 0) {
     const remaining = state.maxRounds - state.round
@@ -137,7 +144,7 @@ export function chooseAction(state: GameState): BotAction {
   }
 
   // last stand: try the reinforcement die on a cheap target
-  const maxDice = 1 + (f.powerId === 'berserk' ? 1 : 0)
+  const maxDice = 1 + (abilitiesOf(f).find((a) => a.extraDice)?.extraDice ?? 0)
   if (state.turn.diceUsed < maxDice && f.hand >= 1) {
     const gamble = targets
       .filter((t) => t.cost <= f.hand + 3 && t.cost > f.hand)
@@ -178,6 +185,9 @@ export function applyBotAction(state: GameState, action: BotAction): string {
     }
     case 'marker':
       placeMarker(state, action.regionId)
+      return action.label
+    case 'worgen':
+      setWorgenForm(state, action.form)
       return action.label
     case 'peace':
       setPeace(state, action.targetId)

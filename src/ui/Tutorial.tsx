@@ -35,7 +35,7 @@ function stageFaction(s: GameState) {
   if (!s.factions[HORDE]) {
     s.factions[HORDE] = {
       uid: HORDE, playerId: 1, raceId: 'orcs', powerId: 'berserk',
-      inDecline: false, hand: 0, markers: 0,
+      inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0,
     }
     s.players[1].activeUid = HORDE
   }
@@ -43,7 +43,7 @@ function stageFaction(s: GameState) {
 
 /** absolute assignment so re-running a step never doubles anything */
 function setRegion(s: GameState, id: string, owner: string | null, tokens: number) {
-  s.regions[id] = { owner, tokens, fortress: 0, hero: false }
+  s.regions[id] = { owner, tokens, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
 }
 
 const Cost = ({ parts, total }: { parts: [string, number][]; total: number }) => (
@@ -85,7 +85,7 @@ export const STEPS: Step[] = [
           <li><span className="lg" style={{ background: '#7f8288' }} /><b>⛰ Montaña</b> — cuesta 1 ficha más conquistarla</li>
           <li><span className="lg" style={{ background: '#456253' }} /><b>⚓ Costera</b> — se puede invadir desde el mar</li>
           <li><span className="lg" style={{ background: '#c2ad6c' }} /><b>★ Lugar legendario / 🔮 Artefacto</b> — bonus especial al conquistarlo (abajo a la derecha)</li>
-          <li><span className="lg" style={{ background: '#2f3a44' }} /><b>Círculo gris</b> — una tribu perdida defiende la región</li>
+          <li><span className="lg" style={{ background: '#2f3a44' }} /><b>Círculo gris</b> — los Múrlocs nativos defienden la región</li>
           <li><span className="lg" style={{ background: '#2a2f3a' }} /><b>❓ Boca abajo</b> — lugar sin revelar, ¡conquístalo para ver qué es!</li>
         </ul>
         <p>Los círculos de colores son fichas: el número es <strong>cuántas hay</strong>.</p>
@@ -113,7 +113,7 @@ export const STEPS: Step[] = [
     ),
     setup: (s) => {
       s.tray[0] = { raceId: 'humans', powerId: 'merchant', bonusCoins: 0 }
-      s.tray[1] = { raceId: 'murlocs', powerId: 'pillaging', bonusCoins: 0 }
+      s.tray[1] = { raceId: 'naga', powerId: 'pillaging', bonusCoins: 0 }
       s.tray[2] = { raceId: 'dwarves', powerId: 'flying', bonusCoins: 0 }
       s.phase = 'pick'
     },
@@ -128,7 +128,7 @@ export const STEPS: Step[] = [
         <p>La <strong>primera región</strong> de una raza nueva debe conquistarse
           desde el mar: solo valen las que tienen <strong>⚓</strong>.</p>
         <p>Toda conquista parte de <strong>2 fichas</strong>, y llegar por mar
-          cuesta <strong>1 más</strong> (los Múrlocs y el poder Navegante desembarcan gratis):</p>
+          cuesta <strong>1 más</strong> (el poder Navegante desembarca gratis):</p>
         <Cost parts={[['base', 2], ['desembarco', 1], ['defensores', 0]]} total={3} />
         <p className="doit">👉 Desembarca en <strong>Llanos de Mulgore</strong>. El círculo amarillo del mapa
           siempre te dice el coste exacto, ya calculado.</p>
@@ -258,9 +258,9 @@ export const STEPS: Step[] = [
     title: 'Tribus perdidas',
     body: (
       <>
-        <p>Algunas regiones empiezan ocupadas por una <strong>tribu perdida</strong> neutral.
+        <p>Algunas regiones empiezan ocupadas por los <strong>Múrlocs</strong>, los nativos del mapa.
           Cada ficha defensora suma <strong>+1 al coste</strong>.</p>
-        <Cost parts={[['base', 2], ['tribu perdida', 1]]} total={3} />
+        <Cost parts={[['base', 2], ['Múrlocs', 1]]} total={3} />
         <p>La ficha de la tribu desaparece del juego para siempre.</p>
         <p className="doit">👉 Somete <strong>Colinas de Hillsbrad</strong>.</p>
       </>
@@ -303,7 +303,7 @@ export const STEPS: Step[] = [
     title: 'El dado de refuerzo',
     body: (
       <>
-        <p>Te quedan pocas fichas y <strong>Pantano de los Zánganos</strong> (montaña + tribu perdida) cuesta 4.
+        <p>Te quedan pocas fichas y <strong>Pantano de los Zánganos</strong> (montaña + Múrlocs) cuesta 4.
           Cuando no llegas, <strong>una vez por turno</strong> puedes jugártela al dado.</p>
         <div className="dieface">
           {[0, 0, 0, 1, 2, 3].map((n, i) => <span key={i}>{n}</span>)}

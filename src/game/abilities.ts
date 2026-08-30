@@ -7,13 +7,15 @@ const REGION_LOOKUP: Record<string, RegionData> = Object.fromEntries(REGIONS.map
 /**
  * Which banner each race fights under. Neutral races are mercenaries: they have
  * no homeland discount but they can raid *both* factions for plunder.
+ * The Murlocs are NOT playable in the official game: they are the map's natives
+ * (the "lost tribe" tokens), so they do not appear in RACES.
  */
 export const RACE_SIDE: Record<string, Side> = {
   humans: 'alliance', dwarves: 'alliance', nightelves: 'alliance',
   gnomes: 'alliance', worgen: 'alliance', draenei: 'alliance',
   orcs: 'horde', trolls: 'horde', tauren: 'horde',
   forsaken: 'horde', goblins: 'horde', bloodelves: 'horde',
-  murlocs: 'neutral', pandaren: 'neutral', naga: 'neutral', dragonmaw: 'neutral',
+  ethereals: 'neutral', kobolds: 'neutral', pandaren: 'neutral', naga: 'neutral',
 }
 
 export const SIDE_LABEL: Record<Side, string> = {
@@ -30,8 +32,42 @@ export function isEnemyRegion(side: Side, region: RegionData): boolean {
 const count = (ctx: AbilityContext, fn: (r: RegionData) => boolean) => ctx.owned.filter(fn).length
 
 export const RACES: Ability[] = [
+  // ---------------------------------------------------------- Alianza (6)
   {
-    id: 'orcs', name: 'Orcos', tokens: 5, color: '#7ba05b',
+    // Objetivos militares: se colocan/redirigen desde el motor (placeObjective / endTurn)
+    id: 'humans', name: 'Humanos', tokens: 5, color: '#c8b9a0',
+    text: 'Objetivos militares: al acabar tu turno marcas 2 regiones que no controles. Quien las conquiste gana +2 monedas, y si no eres tú, tú también.',
+  },
+  {
+    id: 'dwarves', name: 'Enanos', tokens: 5, color: '#d0a24c',
+    text: 'Conquistar Montañas cuesta 2 fichas menos.',
+    conquestCost: (_c, r) => (r.terrain === 'mountains' || r.mountain ? -2 : 0),
+  },
+  {
+    id: 'gnomes', name: 'Gnomos', tokens: 5, color: '#e0b872',
+    text: 'Asalto aéreo: 1 vez por turno pueden conquistar cualquier región sin adyacencia, y ese asalto puede tirar el dado una vez más.',
+    airstrike: true,
+    extraDice: 1,
+  },
+  {
+    // Muros Wisp: los coloca el motor al conquistar bosques (f.wispWalls)
+    id: 'nightelves', name: 'Elfos de la Noche', tokens: 4, color: '#8f7fd6',
+    text: 'Bosques cuestan 1 ficha menos; al conquistar uno colocan un Muro Wisp (+1 defensa, permanece en el declive, se pierde si la región es conquistada).',
+    conquestCost: (_c, r) => (r.terrain === 'forest' ? -1 : 0),
+  },
+  {
+    // Primera ficha perdida por turno se reorganiza en vez de descartarse (engine)
+    id: 'draenei', name: 'Draenei', tokens: 7, color: '#a8d8e8',
+    text: 'La primera ficha Draenei que perderían en cada turno rival no se descarta: se redespliega.',
+  },
+  {
+    // Forma humana / huargo: elección al empezar el turno (setWorgenForm)
+    id: 'worgen', name: 'Huargen', tokens: 5, color: '#7a6a58',
+    text: 'Al empezar tu turno eliges forma: Humano (+2 monedas al puntuar) o Huargo (todas tus conquistas cuestan 1 menos, pero puntúas 1 menos).',
+  },
+  // ------------------------------------------------------------ Horda (6)
+  {
+    id: 'orcs', name: 'Orcos', tokens: 6, color: '#7ba05b',
     text: 'Botín doble: 1 moneda extra más por cada región de la Alianza que conquiste este turno.',
     scoreBonus: (ctx) => {
       if (ctx.faction.inDecline) return 0
@@ -41,88 +77,53 @@ export const RACES: Ability[] = [
     },
   },
   {
-    id: 'humans', name: 'Humanos', tokens: 5, color: '#c8b9a0',
-    text: '+1 moneda por cada región de Llanura que ocupe.',
-    scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'fields'),
+    // Mínimo 2 fichas por región (conquistar, redesplegar y declive) — engine
+    id: 'tauren', name: 'Tauren', tokens: 11, color: '#a9713c',
+    text: 'Colocan sus fichas de 2 en 2: cada región que ocupan (o dejan en declive) tiene al menos 2 Tauren.',
   },
   {
-    id: 'dwarves', name: 'Enanos', tokens: 3, color: '#d0a24c',
-    text: '+1 moneda por cada Montaña que ocupe, incluso en declive.',
-    activeInDecline: true,
-    scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'mountains'),
-  },
-  {
-    id: 'nightelves', name: 'Elfos de la Noche', tokens: 5, color: '#8f7fd6',
-    text: 'Conquistar Bosques cuesta 1 ficha menos.',
-    conquestCost: (_c, r) => (r.terrain === 'forest' ? -1 : 0),
-  },
-  {
-    id: 'trolls', name: 'Trolls', tokens: 5, color: '#4fa8a0',
-    text: '+1 de defensa en cada región que ocupe.',
-    activeInDecline: true,
-    defenseBonus: () => 1,
-  },
-  {
-    id: 'tauren', name: 'Tauren', tokens: 6, color: '#a9713c',
-    text: '+1 de defensa en Llanuras y Colinas.',
-    defenseBonus: (_c, r) => (r.terrain === 'fields' || r.terrain === 'hills' ? 1 : 0),
-  },
-  {
-    id: 'goblins', name: 'Goblins', tokens: 6, color: '#7fbf3f',
-    text: '+1 moneda por cada región con un Lugar Legendario.',
-    scoreBonus: (ctx) => count(ctx, (r) => !!r.landmark),
-  },
-  {
-    id: 'murlocs', name: 'Múrlocs', tokens: 7, color: '#5ec6d8',
-    text: 'Entrar por mar es gratis y las regiones costeras cuestan 1 menos.',
-    conquestCost: (_c, r) => (r.coastal ? -1 : 0),
-  },
-  {
-    id: 'forsaken', name: 'Renegados', tokens: 5, color: '#9aa7b0',
-    text: 'Al entrar en declive conservan TODAS sus fichas sobre el tablero.',
-    keepsTokensInDecline: true,
-  },
-  {
-    id: 'worgen', name: 'Huargen', tokens: 5, color: '#7a6a58',
-    text: '+1 de defensa en Bosques y los Bosques cuestan 1 menos.',
-    defenseBonus: (_c, r) => (r.terrain === 'forest' ? 1 : 0),
-    conquestCost: (_c, r) => (r.terrain === 'forest' ? -1 : 0),
-  },
-  {
-    id: 'gnomes', name: 'Gnomos', tokens: 6, color: '#e0b872',
-    text: 'Asalto aéreo: pueden atacar cualquier región del mapa (sin adyacencia).',
-    ignoresAdjacency: () => true,
-  },
-  {
-    id: 'pandaren', name: 'Pandaren', tokens: 5, color: '#e6ddc8',
-    text: '+2 monedas cada turno mientras estén activos.',
-    scoreBonus: (ctx) => (ctx.faction.inDecline ? 0 : 2),
-  },
-  {
-    id: 'draenei', name: 'Draenei', tokens: 5, color: '#a8d8e8',
-    text: '+1 de defensa y +1 moneda en regiones con Lugar Legendario.',
-    defenseBonus: (_c, r) => (r.landmark ? 1 : 0),
-    scoreBonus: (ctx) => count(ctx, (r) => !!r.landmark),
-  },
-  {
-    id: 'naga', name: 'Naga', tokens: 6, color: '#4f9d76',
-    text: 'Pantanos y costas cuestan 1 ficha menos; +1 defensa en Pantanos.',
-    conquestCost: (_c, r) => (r.terrain === 'swamp' || r.coastal ? -1 : 0),
-    defenseBonus: (_c, r) => (r.terrain === 'swamp' ? 1 : 0),
-  },
-  {
-    id: 'bloodelves', name: 'Elfos de Sangre', tokens: 6, color: '#d95f6e',
-    text: 'Atacar regiones ocupadas por un rival cuesta 1 ficha menos.',
+    id: 'trolls', name: 'Trolls', tokens: 6, color: '#4fa8a0',
+    text: 'Conquistar una región ocupada (Múrlocs u otra raza) cuesta 1 ficha menos.',
     conquestCost: (ctx, r) => {
       const st = ctx.state.regions[r.id]
-      return st.owner && st.owner !== 'lost-tribe' ? -1 : 0
+      return st.owner ? -1 : 0
     },
   },
   {
-    id: 'dragonmaw', name: 'Dragón Negro', tokens: 4, color: '#8b4a5c',
-    text: '+1 moneda por cada Montaña o Yermo; +1 defensa en Montañas.',
-    scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'mountains' || r.terrain === 'wasteland'),
-    defenseBonus: (_c, r) => (r.terrain === 'mountains' ? 1 : 0),
+    // Salvamento de almas: pagar 1 moneda por ficha enemiga descartada (salvageSouls)
+    id: 'forsaken', name: 'Renegados', tokens: 6, color: '#9aa7b0',
+    text: 'Por cada ficha rival descartada con tus conquistas puedes pagar 1 moneda en el redespliegue para recuperar 1 Renegado.',
+  },
+  {
+    id: 'bloodelves', name: 'Elfos de Sangre', tokens: 5, color: '#d95f6e',
+    text: '+1 moneda por cada región Mágica que ocupes. (Las regiones mágicas llegarán con la revisión del mapa.)',
+    scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'magic'),
+  },
+  {
+    // Bombas: colocar al acabar el turno, explotan al empezar el siguiente (placeBomb / resolveBombs)
+    id: 'goblins', name: 'Goblins', tokens: 6, color: '#7fbf3f',
+    text: 'Bombas: al acabar tu turno pegas 1 bomba en cada región rival adyacente que quieras. Si al empezar tu siguiente turno sigue ocupada, explota (50%): el dueño pierde 1 ficha y retrae el resto.',
+  },
+  // ---------------------------------------------------------- Neutrales (4)
+  {
+    // Descuento 1 vez por turno en regiones con loseta legendario (engine)
+    id: 'ethereals', name: 'Etéreos', tokens: 5, color: '#b48ce0',
+    text: '1 vez por turno, conquistar una región con Lugar Legendario o Artefacto cuesta 2 fichas menos.',
+  },
+  {
+    id: 'kobolds', name: 'Kobolds', tokens: 6, color: '#c96f3f',
+    text: 'Pueden conquistar cualquier Caverna como si fuera adyacente, incluso como primera conquista. (Las cavernas llegarán con la revisión del mapa.)',
+    ignoresAdjacency: (_c, r) => r.terrain === 'cave',
+  },
+  {
+    id: 'pandaren', name: 'Pandaren', tokens: 5, color: '#e6ddc8',
+    text: 'Armonía: al acabar tu turno regalas 1 ficha de Armonía a cada rival que no te haya atacado. Quien tenga Armonía paga 2 monedas cada vez que conquiste un Pandaren activo.',
+  },
+  {
+    id: 'naga', name: 'Naga', tokens: 6, color: '#4f9d76',
+    text: 'Única raza que puede ocupar Mares y Lagos, incluso como primera conquista y en declive. (Los lagos llegarán con la revisión del mapa.)',
+    ignoresAdjacency: (_c, r) => r.terrain === 'lake',
+    activeInDecline: true,
   },
 ]
 

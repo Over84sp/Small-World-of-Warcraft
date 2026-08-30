@@ -10,6 +10,9 @@ export const TERRAIN_COLORS: Record<Terrain, string> = {
   mountains: '#7f8288',
   swamp: '#456253',
   wasteland: '#a4643f',
+  lake: '#2e5f7e',
+  cave: '#57504a',
+  magic: '#6f4f9e',
 }
 
 export const TERRAIN_LABEL: Record<Terrain, string> = {
@@ -19,6 +22,9 @@ export const TERRAIN_LABEL: Record<Terrain, string> = {
   mountains: 'Montañas',
   swamp: 'Pantano',
   wasteland: 'Yermo',
+  lake: 'Lago',
+  cave: 'Caverna',
+  magic: 'Mágica',
 }
 
 /* ---------------------------------------------------------- color math */
@@ -92,4 +98,7 @@ export const TERRAIN_MATERIAL: Record<Terrain, MaterialParams> = {
   mountains: { freq: '0.02 0.022', octaves: 5, seed: 21, scale: 9.5 },
   swamp: { freq: '0.05 0.022', octaves: 4, seed: 33, scale: 3.3 },
   wasteland: { freq: '0.035 0.03', octaves: 4, seed: 44, scale: 5.2 },
+  lake: { freq: '0.015 0.06', octaves: 3, seed: 51, scale: 2.6 },
+  cave: { freq: '0.06 0.05', octaves: 4, seed: 57, scale: 4.2 },
+  magic: { freq: '0.045 0.045', octaves: 4, seed: 63, scale: 4.0 },
 }

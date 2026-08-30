@@ -105,10 +105,37 @@ Selección aleatoria: de cada tamaño se elige al azar qué cara/isla concreta e
 - `src/game/engine.ts`: ISLANDS + BOARDS por nº jugadores + selectOfficialIslands() aleatorio con rng mulberry32
 - `src/ui/Setup.tsx`: muestra tableros 2p-6p y lista de islas
 
+## Bloque 1 — Razas oficiales (HECHO ✅)
+
+Las 16 razas jugables reproducen los efectos del juego oficial
+([fuente](https://en.namu.wiki/w/Small_World_of_Warcraft/세부_내용)):
+
+- **Múrlocs ya no son jugables**: son los nativos del mapa (los "tribu perdida").
+  **Dragonmaw/Dragón Negro** eliminado. **Etéreos** y **Kobolds** entran como neutrales.
+- Humanos: 2 Objetivos Militares por turno (+2 a quien las conquiste, +2 a los Humanos si no son ellos).
+- Enanos: montañas −2. Gnomos: asalto aéreo 1/turno + dado extra. Elfos de la Noche: bosques −1
+  y Muro Wisp (+1 defensa) en cada bosque, sobrevive al declive. Draenei: primera ficha perdida
+  por turno se redespliega. Huargen: forma humana (+2) o huargo (−1 coste, −1 moneda).
+- Orcos: botín doble Alianza. Tauren: mínimo 2 fichas por región (y 2 en declive). Trolls: −1
+  en regiones ocupadas. Renegados: 1 alma (ficha descartada) = 1 ficha por 1 moneda en redespliegue.
+  Elfos de Sangre: +1 por región Mágica (pendiente de terreno). Goblins: 12 bombas (50% explotan).
+- Etéreos: −2 1/turno en región con loseta. Kobolds: cavernas como adyacentes (pendiente de terreno).
+  Pandaren: Armonía (atacarles cuesta 2 monedas). Naga: Mares/Lagos (pendiente de terreno).
+
+Aproximaciones declaradas (texto oficial no verificado al 100%): colocación de Objetivos
+Militares (aquí: cualquier región ajena), dado extra Gnomo modelado como +1 dado/turno,
+y Armonía limitada a 1 ficha por jugador a la vez.
+
 ## Pendiente para 100% fiel
+- [x] ~~Bloque 1: razas oficiales~~ (16 razas con efectos oficiales; Múrlocs = nativos; Etéreos y Kobolds entran)
+- [ ] Bloque 2: sustituir los 20 poderes clásicos por los oficiales (Arqueólogo, Herrero, Campeón, Enfurecida…)
+- [ ] Bloque 3: Wisp Walls de frontera impresas + Fuertes neutrales del setup
+- [ ] Bloque 4: terrenos Mar/Lago, Caverna y Mágica en el generador (activa Naga, Kobolds, Elfos de Sangre y Etéreos plenos)
+- [ ] Bloque 5: lugares legendarios y artefactos oficiales (Capilla de la Luz, Piedra de Reunión, Espíritu Sanador, Égida, Cenizas de Al'ar)
+- [ ] Bloque 6: bestias, Campeón, torres de vigía y Armonía como componentes físicos con pool
 - [ ] Ajustar Murlocs de 13 a 15 exactos según foto alta res
 - [ ] Ajustar montañas de 13 a 10 exactos
-- [ ] Implementar 9 Wisp Walls como bloqueo de adyacencia (lista de pares bloqueados)
+- [ ] Implementar 9 Wisp Walls como bloqueo de adyacencia (lista de pares bloqueados) — los de raza ya existen
 - [ ] Entry cost: en oficial, desembarco cuesta 1 extra salvo Murlocs/Marinero, ya implementado
 - [ ] Revisar terrenos exactos de cada región con fotos wiki high-res (ahora aproximado)
 - [ ] Doble cara: cada isla tiene 2 caras, ahora solo 1 cara por isla (necesitaríamos 12 caras totales, 6 usadas por partida)

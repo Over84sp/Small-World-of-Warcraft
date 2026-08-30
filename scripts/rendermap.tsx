@@ -17,9 +17,9 @@ s.regions['durotar'].fortress = 1
 s.regions['azshara'].hero = true
 s.factions['x'] = { uid: 'x', playerId: 1, raceId: 'orcs', powerId: 'berserk', inDecline: false, hand: 0, markers: 0 }
 s.players[1].activeUid = 'x'
-s.regions['nbarrens'] = { owner: 'x', tokens: 3, fortress: 0, hero: false }
-if (process.env.BOARD === 'azeroth') { s.regions['elwynn'] = { owner: 'x', tokens: 2, fortress: 0, hero: false }; s.regions['duskwood'] = { owner: 'x', tokens: 4, fortress: 0, hero: false } }
-s.regions['mulgore'] = { owner: 'x', tokens: 2, fortress: 0, hero: false }
+s.regions['nbarrens'] = { owner: 'x', tokens: 3, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
+if (process.env.BOARD === 'azeroth') { s.regions['elwynn'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }; s.regions['duskwood'] = { owner: 'x', tokens: 4, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false } }
+s.regions['mulgore'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
 
 const html = renderToStaticMarkup(
   <MapView state={s} selected={null} onSelect={() => {}} highlightTargets markerMode={false} compact={false} />,

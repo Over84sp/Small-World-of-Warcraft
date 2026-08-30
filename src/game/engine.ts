@@ -190,7 +190,7 @@ export function factionTokenTotal(state: GameState, f: FactionState): number {
 export function defenseOf(state: GameState, regionId: string): number {
   const region = REGION_BY_ID[regionId]
   const st = state.regions[regionId]
-  let d = st.tokens + st.fortress + (region.mountain ? 1 : 0)
+  let d = st.tokens + st.fortress + (region.mountain ? 1 : 0) + (st.wisp ?? 0)
   if (st.owner && st.owner !== LOST_TRIBE) {
     const f = state.factions[st.owner]
     for (const a of abilitiesOf(f)) d += a.defenseBonus?.(ctxOf(state, f), region) ?? 0
@@ -207,6 +207,10 @@ export interface CostInfo {
   homeland: boolean
   /** region of the enemy banner: pays plunder when conquered */
   plunder: boolean
+  /** gnomes: this conquest uses the once-per-turn aerial assault */
+  airstrike: boolean
+  /** ethereals: this conquest uses their once-per-turn legendary discount */
+  ethereal: boolean
 }
 
 export function conquestCost(state: GameState, regionId: string): CostInfo {
@@ -214,34 +218,38 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const st = state.regions[regionId]
   const player = state.players[state.current]
   const uid = player.activeUid
-  if (!uid) return { cost: 99, reachable: false, reason: 'Sin raza activa', viaSea: false, homeland: false, plunder: false }
+  const blank = { airstrike: false, ethereal: false }
+  if (!uid) return { cost: 99, reachable: false, reason: 'Sin raza activa', viaSea: false, homeland: false, plunder: false, ...blank }
   const f = state.factions[uid]
   const ctx = ctxOf(state, f)
 
   if (state.turn.assaultFailed) {
-    return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false, homeland: false, plunder: false }
+    return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false, homeland: false, plunder: false, ...blank }
   }
-  if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false, homeland: false, plunder: false }
-  if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false, homeland: false, plunder: false }
+  if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false, homeland: false, plunder: false, ...blank }
+  if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false, homeland: false, plunder: false, ...blank }
   if (st.owner && st.owner !== LOST_TRIBE) {
     const enemy = state.factions[st.owner]
     if (enemy.playerId === player.id) {
-      return { cost: 99, reachable: false, reason: 'Es tu raza en declive', viaSea: false, homeland: false, plunder: false }
+      return { cost: 99, reachable: false, reason: 'Es tu raza en declive', viaSea: false, homeland: false, plunder: false, ...blank }
     }
     if (state.players[enemy.playerId].peaceWith === player.id) {
-      return { cost: 99, reachable: false, reason: 'Tratado diplomático', viaSea: false, homeland: false, plunder: false }
+      return { cost: 99, reachable: false, reason: 'Tratado diplomático', viaSea: false, homeland: false, plunder: false, ...blank }
     }
   }
 
   const owned = ctx.owned
   const adjacent = owned.some((r) => r.neighbors.includes(regionId))
   const ignores = abilitiesOf(f).some((a) => a.ignoresAdjacency?.(ctx, region))
+  // gnomes: once per turn they may strike any region, adjacency or not
+  const airstrike = !state.turn.airstrikeUsed && abilitiesOf(f).some((a) => a.airstrike)
   const seaEntry = region.coastal
-  let reachable = adjacent || ignores || seaEntry
+  let reachable = adjacent || ignores || seaEntry || airstrike
   // the very first conquest of a race must start from the sea or a flying power
-  if (owned.length === 0) reachable = seaEntry || ignores
+  if (owned.length === 0) reachable = seaEntry || ignores || airstrike
 
   const viaSea = !adjacent && !ignores && seaEntry
+  const usesAirstrike = !adjacent && !ignores && !seaEntry && airstrike
 
   let cost = 2 + defenseOf(state, regionId)
   for (const a of abilitiesOf(f)) cost += a.conquestCost?.(ctx, region) ?? 0
@@ -249,10 +257,17 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const homeland = region.faction && region.faction === sideOf(f)
   if (homeland) cost -= 1
   if (viaSea) {
-    const freeSea = f.raceId === 'murlocs' || f.powerId === 'seafaring'
+    const freeSea = f.powerId === 'seafaring'
     if (!freeSea) cost += 1
   }
+  // worgen in wolf form pay 1 token less on every conquest this turn
+  if (state.turn.worgenForm === 'werewolf') cost -= 1
+  // ethereals: once per turn, legendary regions cost 2 less
+  const ethereal = f.raceId === 'ethereals' && !state.turn.etherealUsed && !!legendaryAt(state, regionId)
+  if (ethereal) cost -= 2
   cost = Math.max(1, cost)
+  // tauren must garrison every region they take with at least 2 tokens
+  if (f.raceId === 'tauren') cost = Math.max(cost, 2)
 
   return {
     cost,
@@ -261,6 +276,8 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
     viaSea,
     homeland: !!homeland,
     plunder: isEnemyRegion(sideOf(f), region),
+    airstrike: usesAirstrike,
+    ethereal,
   }
 }
 
@@ -309,7 +326,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
     boardId: board.id,
     landmasses,
     players: configs.map((c, i) => ({
-      id: i, name: c.name, isBot: c.isBot, coins: 5, activeUid: null, declineUid: null, peaceWith: null,
+      id: i, name: c.name, isBot: c.isBot, coins: 5, activeUid: null, declineUid: null, peaceWith: null, harmony: 0,
     })),
     factions: {},
     regions: {},
@@ -326,7 +343,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
   }
 
   for (const r of REGIONS) {
-    const st: RegionState = { owner: null, tokens: 0, fortress: 0, hero: false }
+    const st: RegionState = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
     if (!landmasses.includes(r.landmass)) { state.regions[r.id] = st; continue }
     if (r.lostTribe) {
       st.owner = LOST_TRIBE
@@ -398,6 +415,8 @@ function emptyTurn() {
     conquered: [], conqueredOccupied: [], diceUsed: 0, diceLast: null,
     usedFlight: false, declaredDecline: false, firstConquestDone: false, pendingReturns: {},
     assaultFailed: false, attacked: [],
+    worgenForm: null, draeneiSaved: false, etherealUsed: false, airstrikeUsed: false,
+    souls: 0, pandarenStruck: [], moPlaced: 0,
   }
 }
 
@@ -432,6 +451,8 @@ export function selectCombo(state: GameState, index: number): GameState {
     uid, playerId: player.id, raceId: combo.raceId, powerId: combo.powerId,
     inDecline: false, hand: comboTokens(combo),
     markers: POWER_BY_ID[combo.powerId]?.markers ?? 0,
+    wispWalls: combo.raceId === 'nightelves' ? 9 : 0,
+    bombs: combo.raceId === 'goblins' ? 12 : 0,
   }
   state.factions[uid] = faction
   player.activeUid = uid
@@ -444,17 +465,26 @@ export function selectCombo(state: GameState, index: number): GameState {
   return state
 }
 
+/** minimum tokens a race must keep in each region it occupies (tauren: 2) */
+export function minPerRegion(state: GameState, uid: string): number {
+  const f = state.factions[uid]
+  return f?.raceId === 'tauren' ? 2 : 1
+}
+
 /** picks up all but one token per occupied region into the hand */
 export function gatherTokens(state: GameState) {
   const player = state.players[state.current]
   if (!player.activeUid) return
   const f = state.factions[player.activeUid]
+  const min = minPerRegion(state, f.uid)
   for (const r of regionsOf(state, f.uid)) {
     const st = state.regions[r.id]
-    if (st.tokens > 1) {
-      f.hand += st.tokens - 1
-      st.tokens = 1
+    if (st.tokens > min) {
+      f.hand += st.tokens - min
+      st.tokens = min
     }
+    // wisp walls defend empty ground: drop the wall if the race abandoned the region
+    if (st.tokens === 0) st.wisp = 0
   }
 }
 
@@ -462,11 +492,40 @@ export function beginTurn(state: GameState) {
   state.turn = emptyTurn()
   const player = state.players[state.current]
   player.peaceWith = null
+  resolveBombs(state)
   if (!player.activeUid) {
     state.phase = 'pick'
   } else {
     state.phase = 'conquer'
     gatherTokens(state)
+  }
+}
+
+/**
+ * goblin bombs placed last turn blow up (50%) at the start of the goblin
+ * player's turn if the region is still occupied by a race
+ */
+function resolveBombs(state: GameState) {
+  const bombed = Object.entries(state.regions).filter(([, st]) => st.bomb)
+  if (!bombed.length) return
+  const player = state.players[state.current]
+  const isGoblinOwner = [player.activeUid, player.declineUid]
+    .some((uid) => uid && state.factions[uid]?.raceId === 'goblins')
+  if (!isGoblinOwner) return // not the goblin player's turn: bombs keep ticking
+  for (const [rid, st] of bombed) {
+    st.bomb = false
+    const ownerFaction = st.owner && st.owner !== LOST_TRIBE ? state.factions[st.owner] : null
+    if (!ownerFaction) continue // empty or murloc-held: the bomb is retrieved
+    if (nextRandom(state) < 0.5) {
+      if (!ownerFaction.inDecline) {
+        ownerFaction.hand += Math.max(0, st.tokens - 1)
+      }
+      const label = factionLabel(ownerFaction)
+      state.regions[rid] = { ...st, owner: null, tokens: 0, wisp: 0 }
+      log(state, player.id, `💥 La bomba EXPLOTA en ${REGION_BY_ID[rid].name}: ${label} pierde todas sus fichas de la región`)
+    } else {
+      log(state, player.id, `💣 Bomba fallida en ${REGION_BY_ID[rid].name}: no pasa nada`)
+    }
   }
 }
 
@@ -488,51 +547,95 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
   const info = conquestCost(state, regionId)
   if (!info.reachable) return { ok: false, message: info.reason ?? 'Inalcanzable' }
 
+  // tauren always pay at least 2 (already baked into info.cost by conquestCost)
+  const effCost = info.cost
+
   let rolled: number | undefined
-  if (f.hand < info.cost) {
+  if (f.hand < effCost) {
     const maxDice = 1 + (abilitiesOf(f).find((a) => a.extraDice)?.extraDice ?? 0)
-    if (!useDie) return { ok: false, message: `Necesitas ${info.cost} fichas y tienes ${f.hand}` }
+    if (!useDie) return { ok: false, message: `Necesitas ${effCost} fichas y tienes ${f.hand}` }
     if (state.turn.diceUsed >= maxDice) return { ok: false, message: 'Ya has usado el dado de refuerzo' }
     if (f.hand < 1) return { ok: false, message: 'Necesitas al menos 1 ficha para lanzar el dado' }
     rolled = pick(state, DIE_FACES)
     state.turn.diceUsed += 1
     state.turn.diceLast = rolled
-    if (f.hand + rolled < info.cost) {
+    if (f.hand + rolled < effCost) {
       const used = f.hand
       // a failed assault really does end the conquest phase — that is what makes
       // the reinforcement die a gamble rather than a free extra roll
       state.turn.assaultFailed = true
-      log(state, player.id, `¡El dado saca ${rolled}! Asalto a ${REGION_BY_ID[regionId].name} fallido (${used}+${rolled} < ${info.cost}). Fin de sus conquistas.`)
-      return { ok: false, message: `Dado ${rolled}: insuficiente (${used}+${rolled} de ${info.cost})`, rolled }
+      log(state, player.id, `¡El dado saca ${rolled}! Asalto a ${REGION_BY_ID[regionId].name} fallido (${used}+${rolled} < ${effCost}). Fin de sus conquistas.`)
+      return { ok: false, message: `Dado ${rolled}: insuficiente (${used}+${rolled} de ${effCost})`, rolled }
     }
   }
 
   const st = state.regions[regionId]
-  const spend = Math.min(f.hand, info.cost)
+  const spend = Math.min(f.hand, effCost)
   f.hand -= spend
 
   // defender loses one token, gets the rest back
   if (st.owner && st.owner !== LOST_TRIBE) {
     const enemy = state.factions[st.owner]
-    const back = Math.max(0, st.tokens - 1)
+    let back = Math.max(0, st.tokens - 1)
+    // draenei: the first token they would lose each turn is redeployed instead
+    if (enemy.raceId === 'draenei' && !enemy.inDecline && !state.turn.draeneiSaved) {
+      state.turn.draeneiSaved = true
+      back += 1
+      log(state, enemy.playerId, `✨ Los Draenei reorganizan la primera ficha perdida del turno`)
+    }
     if (!enemy.inDecline) {
       state.turn.pendingReturns[enemy.uid] = (state.turn.pendingReturns[enemy.uid] ?? 0) + back
     }
     state.turn.conqueredOccupied.push(regionId)
     if (!state.turn.attacked.includes(enemy.playerId)) state.turn.attacked.push(enemy.playerId)
+    // pandaren harmony: conquering an active pandaren region costs 2 coins to anyone holding harmony
+    if (enemy.raceId === 'pandaren' && !enemy.inDecline && player.harmony > 0) {
+      const pay = Math.min(2, player.coins)
+      if (pay > 0) {
+        player.harmony -= 1
+        player.coins -= pay
+        state.players[enemy.playerId].coins += pay
+        log(state, player.id, `🕊 Paga ${pay} moneda${pay > 1 ? 's' : ''} de Armonía a los Pandaren por conquistar su región`)
+      }
+    }
+    if (enemy.raceId === 'pandaren' && !enemy.inDecline && !state.turn.pandarenStruck.includes(player.id)) {
+      state.turn.pandarenStruck.push(player.id)
+    }
+    // forsaken salvage: every enemy token discarded feeds their dark magic
+    if (f.raceId === 'forsaken') state.turn.souls += 1
     log(state, player.id, `expulsa a ${factionLabel(enemy)} de ${REGION_BY_ID[regionId].name}`)
   } else if (st.owner === LOST_TRIBE) {
-    log(state, player.id, `somete a la tribu perdida de ${REGION_BY_ID[regionId].name}`)
+    if (f.raceId === 'forsaken') state.turn.souls += 1
+    log(state, player.id, `somete a los Múrlocs de ${REGION_BY_ID[regionId].name}`)
   } else {
-    log(state, player.id, `conquista ${REGION_BY_ID[regionId].name}${info.viaSea ? ' (desembarco)' : ''}`)
+    log(state, player.id, `conquista ${REGION_BY_ID[regionId].name}${info.viaSea ? ' (desembarco)' : ''}${info.airstrike ? ' (asalto aéreo)' : ''}`)
   }
 
   st.owner = uid
   st.tokens = spend
   st.fortress = 0
   st.hero = false
+  st.wisp = 0
   state.turn.conquered.push(regionId)
   state.turn.firstConquestDone = true
+  if (info.airstrike) state.turn.airstrikeUsed = true
+  if (info.ethereal) state.turn.etherealUsed = true
+
+  // night elves: every forest they take gets a wisp wall while they have tokens for it
+  if (f.raceId === 'nightelves' && REGION_BY_ID[regionId].terrain === 'forest' && f.wispWalls > 0 && st.wisp === 0) {
+    st.wisp = 1
+    f.wispWalls -= 1
+    log(state, player.id, `✨ Coloca un Muro Wisp en ${REGION_BY_ID[regionId].name} (+1 defensa)`)
+  }
+
+  // human military objectives: whoever takes the marked region cashes the bounty
+  if (st.mo) {
+    st.mo = false
+    const humans = state.players.find((p) => p.activeUid && state.factions[p.activeUid]?.raceId === 'humans' && !state.factions[p.activeUid].inDecline)
+    player.coins += 2
+    if (humans && humans.id !== player.id) humans.coins += 2
+    log(state, player.id, `🎯 Objetivo militar conquistado: +2 monedas${humans && humans.id !== player.id ? ` (y +2 para los Humanos)` : ''}`)
+  }
 
   // reveal legendary tile if present face-down
   const leg = state.legendary.find((t) => t.regionId === regionId && !t.revealed)
@@ -564,16 +667,17 @@ export function goIntoDecline(state: GameState): GameState {
   if (player.declineUid) {
     const old = state.factions[player.declineUid]
     for (const r of regionsOf(state, old.uid)) {
-      state.regions[r.id] = { owner: null, tokens: 0, fortress: 0, hero: false }
+      state.regions[r.id] = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
     }
     delete state.factions[old.uid]
     log(state, player.id, `${factionLabel(old)} desaparece del mundo`)
   }
 
   const keepsAll = abilitiesOf({ ...f, inDecline: false }).some((a) => a.keepsTokensInDecline)
+  const min = minPerRegion(state, f.uid) // tauren leave 2 per region in decline
   for (const r of regionsOf(state, f.uid)) {
     const st = state.regions[r.id]
-    if (!keepsAll) st.tokens = 1
+    if (!keepsAll) st.tokens = min
     st.hero = false
   }
   f.hand = 0
@@ -597,10 +701,11 @@ export function placeToken(state: GameState, regionId: string, delta: number): G
   const f = state.factions[player.activeUid]
   const st = state.regions[regionId]
   if (st.owner !== f.uid) return state
+  const min = minPerRegion(state, f.uid)
   if (delta > 0 && f.hand > 0) {
     f.hand -= 1
     st.tokens += 1
-  } else if (delta < 0 && st.tokens > 1) {
+  } else if (delta < 0 && st.tokens > min) {
     st.tokens -= 1
     f.hand += 1
   }
@@ -648,6 +753,126 @@ export function placeMarker(state: GameState, regionId: string): GameState {
   f.markers -= 1
   log(state, player.id, `coloca ${f.powerId === 'heroic' ? 'un héroe' : 'una fortaleza'} en ${REGION_BY_ID[regionId].name}`)
   return state
+}
+
+/* ------------------------------------------- official race actions (block 1) */
+
+/** worgen choose their form at the start of the turn; null = human by default */
+export function setWorgenForm(state: GameState, form: 'human' | 'werewolf'): GameState {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid || state.factions[uid].raceId !== 'worgen') return state
+  if (state.turn.worgenForm) return state
+  state.turn.worgenForm = form
+  log(state, player.id, form === 'werewolf'
+    ? '\u{1F43A} adopta la forma de Huargo: conquistar cuesta 1 ficha menos este turno (\u22121 moneda al puntuar)'
+    : '\u{1F9D1} adopta forma humana: +2 monedas al puntuar')
+  return state
+}
+
+/** forsaken: pay 1 coin per discarded enemy token to get a forsaken token back */
+export function salvageSouls(state: GameState, count: number): GameState {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid || state.phase !== 'redeploy') return state
+  const f = state.factions[uid]
+  if (f.raceId !== 'forsaken') return state
+  const n = Math.max(0, Math.min(count, state.turn.souls, player.coins))
+  if (n === 0) return state
+  state.turn.souls -= n
+  player.coins -= n
+  f.hand += n
+  log(state, player.id, `\u{1F47B} Salva ${n} alma${n > 1 ? 's' : ''} pagando ${n} moneda${n > 1 ? 's' : ''}: +${n} Renegado${n > 1 ? 's' : ''} en mano`)
+  return state
+}
+
+/** goblins: glue a bomb to an adjacent region held by another player's active race */
+export function placeBomb(state: GameState, regionId: string): boolean {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid || (state.phase !== 'redeploy' && state.phase !== 'conquer')) return false
+  const f = state.factions[uid]
+  if (f.raceId !== 'goblins' || f.bombs <= 0 || f.inDecline) return false
+  const st = state.regions[regionId]
+  if (st.bomb) return false
+  if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
+  const target = state.factions[st.owner]
+  if (target.inDecline || target.playerId === player.id) return false
+  const adjacent = regionsOf(state, uid).some((r) => r.neighbors.includes(regionId))
+  if (!adjacent) return false
+  st.bomb = true
+  f.bombs -= 1
+  log(state, player.id, `\u{1F4A3} Pega una bomba en ${REGION_BY_ID[regionId].name} (${factionLabel(target)}): explotar\u00e1 al empezar su pr\u00f3ximo turno si sigue ocupada`)
+  return true
+}
+
+/** humans: mark a region they don't control as a military objective (2 per turn) */
+export function placeObjective(state: GameState, regionId: string): boolean {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid || state.phase !== 'redeploy') return false
+  const f = state.factions[uid]
+  if (f.raceId !== 'humans' || f.inDecline || state.turn.moPlaced >= 2) return false
+  const st = state.regions[regionId]
+  if (st.owner === uid || st.mo) return false
+  st.mo = true
+  state.turn.moPlaced += 1
+  log(state, player.id, `\u{1F3AF} Marca ${REGION_BY_ID[regionId].name} como objetivo militar (${state.turn.moPlaced}/2)`)
+  return true
+}
+
+/** how contested a region is: foreign neighbours + coastal exposure */
+function trafficOf(state: GameState, regionId: string): number {
+  const r = REGION_BY_ID[regionId]
+  let t = r.neighbors.filter((n) => {
+    const o = state.regions[n].owner
+    return o && o !== LOST_TRIBE
+  }).length
+  if (r.coastal) t += 1
+  return t
+}
+
+/** bots & fallbacks: place pending race markers without user input */
+function autoRaceMarkers(state: GameState) {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid) return
+  const f = state.factions[uid]
+  if (f.inDecline) return
+
+  // humans: unplaced objectives go on the busiest foreign ground
+  if (f.raceId === 'humans') {
+    const candidates = boardRegions(state)
+      .filter((r) => state.regions[r.id].owner !== uid && !state.regions[r.id].mo)
+      .sort((a, b) => trafficOf(state, b.id) - trafficOf(state, a.id))
+    while (state.turn.moPlaced < 2 && candidates.length) {
+      const r = candidates.shift()!
+      placeObjective(state, r.id)
+    }
+  }
+
+  // goblins: bots bomb the adjacent enemy region with the most tokens
+  if (f.raceId === 'goblins' && player.isBot && f.bombs > 0) {
+    const placed = Object.values(state.regions).some((st) => st.bomb)
+    if (!placed) {
+      const target = boardRegions(state)
+        .filter((r) => {
+          const st = state.regions[r.id]
+          if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
+          const enemy = state.factions[st.owner]
+          return !enemy.inDecline && enemy.playerId !== player.id &&
+            state.regions[r.id].tokens > 0 &&
+            regionsOf(state, uid).some((mine) => mine.neighbors.includes(r.id))
+        })
+        .sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)[0]
+      if (target) placeBomb(state, target.id)
+    }
+  }
+
+  // forsaken bots salvage every soul they can afford above a 2-coin buffer
+  if (f.raceId === 'forsaken' && player.isBot) {
+    salvageSouls(state, Math.max(0, player.coins - 2))
+  }
 }
 
 /** opponents the Diplomat may sign peace with this turn */
@@ -731,6 +956,17 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
 
   if (plunderExtra) total += plunderExtra
 
+  // worgen: the form chosen this turn shifts the score
+  if (player.activeUid && state.factions[player.activeUid].raceId === 'worgen' && !state.factions[player.activeUid].inDecline) {
+    if (state.turn.worgenForm === 'werewolf') {
+      total -= 1
+      detail.push('  \u{1F43A} Forma Huargo: \u22121')
+    } else {
+      total += 2
+      detail.push('  \u{1F9D1} Forma humana: +2')
+    }
+  }
+
   // legendary bonuses (excluding double_faction which already handled)
   for (const tile of ownedLegendary) {
     const def = LEGENDARY_BY_ID[tile.defId]
@@ -772,7 +1008,7 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
   // also show legendary tiles that give 0 but are owned, for transparency (optional)
   // For flat bonuses that are 0? No.
 
-  return { total, detail }
+  return { total: Math.max(0, total), detail }
 }
 
 export function legendaryAt(state: GameState, regionId: string) {
@@ -786,6 +1022,28 @@ export function legendaryDefOf(tile: { defId: string } | null) {
 
 export function endTurn(state: GameState): GameState {
   const player = state.players[state.current]
+
+  // worgen that never picked a form stay human (+2 coins)
+  const activeUid = player.activeUid
+  if (activeUid && state.factions[activeUid].raceId === 'worgen' && !state.turn.worgenForm) {
+    setWorgenForm(state, 'human')
+  }
+
+  // place pending race markers (human objectives, bot bombs, bot soul salvage)
+  autoRaceMarkers(state)
+
+  // pandaren hand out harmony to every rival that did not strike them this turn
+  if (activeUid && !state.factions[activeUid].inDecline && state.factions[activeUid].raceId === 'pandaren') {
+    let given = 0
+    for (const p of state.players) {
+      if (p.id === player.id) continue
+      if (state.turn.pandarenStruck.includes(p.id)) continue
+      if (p.harmony > 0) continue // one token per player at a time (4 in the pool)
+      p.harmony = 1
+      given++
+    }
+    if (given) log(state, player.id, `🕊 Regala Armonía a ${given} rival${given > 1 ? 'es' : ''}: atacar Pandaren les costará 2 monedas`)
+  }
 
   // never let the turn dead-end on an unmade diplomatic choice
   if (needsDiplomacy(state)) {
