@@ -18,10 +18,10 @@ todo el mapa, el arte y el código están redibujados desde cero, sin usar mater
   repartidas en Kalimdor, los Reinos del Este y varias islas, con adyacencias y costas calculadas
   automáticamente a partir de la geometría.
 - **Tres tableros**: Kalimdor (2 jugadores), Reinos del Este (3) y Azeroth completo (4-5).
-- **16 razas oficiales y 20 poderes** que se combinan al azar en cada partida (Huargen que
+- **16 razas y 20 poderes oficiales** que se combinan al azar en cada partida (Huargen que
   cambian de forma, Goblins con bombas, Tauren que guarnecen de 2 en 2, Renegados que salvan
-  almas…). Los **Múrlocs son los nativos** del mapa, no una raza jugable, como en el juego
-  de tablero. (Pendiente: sustituir los 20 poderes clásicos por los oficiales.)
+  almas, Campeones que cargan solos, Guarniciones fortificadas…). Los **Múrlocs son los
+  nativos** del mapa, no una raza jugable, como en el juego de tablero.
 - **Reglas completas del núcleo**: coste de conquista, montañas, desembarcos por mar (⚓),
   tribus perdidas, dado de refuerzo, redespliegue, declive y puntuación.
 - **IA** para los rivales, con heurística de valor/coste por región, gestión de riesgo y

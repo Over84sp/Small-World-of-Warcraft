@@ -28,6 +28,7 @@ export interface RegionState {
   tokens: number
   /** fortresses / watchtowers add permanent defense */
   fortress: number
+  /** the Champion power token: counts as 1 race token when defending */
   hero: boolean
   /** night-elf wisp wall: +1 defense, survives decline, discarded on conquest */
   wisp: number
@@ -35,6 +36,8 @@ export interface RegionState {
   bomb: boolean
   /** human military objective: +2 coins to whoever conquers it */
   mo: boolean
+  /** Defensive power watchtower: the region cannot be conquered */
+  tower: boolean
 }
 
 export interface FactionState {
@@ -51,6 +54,8 @@ export interface FactionState {
   wispWalls: number
   /** goblin bombs still available (race token pool) */
   bombs: number
+  /** Beast Master: beast tokens granted this turn (fight as race tokens) */
+  beasts: number
 }
 
 export interface PlayerState {
@@ -105,6 +110,13 @@ export interface TurnState {
   pandarenStruck: number[]
   /** human military objectives placed this turn (max 2) */
   moPlaced: number
+  /* ---- power-specific per-turn state (official powers, block 2) ---- */
+  /** Champion: their once-per-turn champion conquest */
+  championUsed: boolean
+  /** Intimidating: enemy tokens moved this turn (max 3) */
+  intimidated: number
+  /** defender tokens each conquered region had — the Enraged bonus */
+  defenders: Record<string, number>
 }
 
 export interface LogEntry {
@@ -174,4 +186,19 @@ export interface Ability {
   declineAfterConquest?: boolean
   /** once per turn, may conquer one non-adjacent region (gnomes' aerial assault) */
   airstrike?: boolean
+  /* ---- official power flags (block 2) ---- */
+  /** Champion power: once per turn conquer an adjacent region with the champion token */
+  champion?: boolean
+  /** Defensive power: places a watchtower at end of turn */
+  watchtower?: boolean
+  /** Intimidating power: may move enemy tokens */
+  intimidating?: boolean
+  /** Beast Master power: beast tokens each turn */
+  beasts?: boolean
+  /** Portal Mage power: swap tokens between magic regions (needs magic terrain) */
+  portalmage?: boolean
+  /** Enraged power: bonus coins per defender token of conquered regions */
+  enraged?: boolean
+  /** Marshdweller power: attackers of your swamps pay you 1 coin (also in decline) */
+  marshdweller?: boolean
 }

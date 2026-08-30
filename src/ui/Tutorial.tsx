@@ -34,8 +34,8 @@ const TUTORIAL_ARMY = 20
 function stageFaction(s: GameState) {
   if (!s.factions[HORDE]) {
     s.factions[HORDE] = {
-      uid: HORDE, playerId: 1, raceId: 'orcs', powerId: 'berserk',
-      inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0,
+      uid: HORDE, playerId: 1, raceId: 'orcs', powerId: 'ranger',
+      inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0,
     }
     s.players[1].activeUid = HORDE
   }
@@ -43,7 +43,7 @@ function stageFaction(s: GameState) {
 
 /** absolute assignment so re-running a step never doubles anything */
 function setRegion(s: GameState, id: string, owner: string | null, tokens: number) {
-  s.regions[id] = { owner, tokens, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
+  s.regions[id] = { owner, tokens, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
 }
 
 const Cost = ({ parts, total }: { parts: [string, number][]; total: number }) => (
@@ -108,13 +108,13 @@ export const STEPS: Step[] = [
           de la derecha son las <strong>fichas</strong> que recibes: tu ejército.</p>
         <p>La primera combinación es gratis. Bajar cuesta <strong>1 moneda por cada una que saltas</strong>,
           y esas monedas se quedan encima de las descartadas como cebo para el siguiente.</p>
-        <p className="doit">👉 Coge los <strong>Humanos Mercaderes</strong>.</p>
+        <p className="doit">👉 Coge los <strong>Humanos Guardabosques</strong>.</p>
       </>
     ),
     setup: (s) => {
-      s.tray[0] = { raceId: 'humans', powerId: 'merchant', bonusCoins: 0 }
-      s.tray[1] = { raceId: 'naga', powerId: 'pillaging', bonusCoins: 0 }
-      s.tray[2] = { raceId: 'dwarves', powerId: 'flying', bonusCoins: 0 }
+      s.tray[0] = { raceId: 'humans', powerId: 'ranger', bonusCoins: 0 }
+      s.tray[1] = { raceId: 'naga', powerId: 'sailing', bonusCoins: 0 }
+      s.tray[2] = { raceId: 'dwarves', powerId: 'blacksmith', bonusCoins: 0 }
       s.phase = 'pick'
     },
     done: (s) => !!s.players[0].activeUid,

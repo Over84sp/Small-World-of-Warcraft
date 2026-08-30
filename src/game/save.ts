@@ -2,7 +2,7 @@ import type { GameState } from './types'
 
 const KEY = 'swa:save:v1'
 /** bump when GameState changes shape so old saves are discarded instead of crashing */
-const SCHEMA = 5
+const SCHEMA = 6
 
 interface Envelope {
   schema: number

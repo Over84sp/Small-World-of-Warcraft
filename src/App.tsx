@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BOARDS, REGION_BY_ID, abilitiesOf, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
   conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
-  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, placeBomb, placeMarker, placeObjective, placeToken,
+  goIntoDecline, intimidate, legendaryAt, legendaryDefOf, needsDiplomacy, placeBomb, placeMarker, placeObjective, placeToken,
   plunderThisTurn, regionsOf, salvageSouls, scoreFor, selectCombo, setPeace, setWorgenForm, sideOf, startRedeploy,
 } from './game/engine'
 import { clearSave, loadGame, saveGame } from './game/save'
@@ -31,6 +31,7 @@ export default function App() {
   const [markerMode, setMarkerMode] = useState(false)
   const [bombMode, setBombMode] = useState(false)
   const [objectiveMode, setObjectiveMode] = useState(false)
+  const [intimidateMode, setIntimidateMode] = useState(false)
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
   const [confirmMode, setConfirmMode] = useState(isTouch)
@@ -68,6 +69,7 @@ export default function App() {
       setMarkerMode(false)
       setBombMode(false)
       setObjectiveMode(false)
+      setIntimidateMode(false)
       return h.slice(0, -1)
     })
   }
@@ -78,6 +80,7 @@ export default function App() {
     setMarkerMode(false)
     setBombMode(false)
     setObjectiveMode(false)
+    setIntimidateMode(false)
   }
 
   const abandonGame = () => {
@@ -145,6 +148,7 @@ export default function App() {
         setMarkerMode(false)
         setBombMode(false)
         setObjectiveMode(false)
+        setIntimidateMode(false)
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
@@ -206,6 +210,16 @@ export default function App() {
         setFlash('Objetivo inválido: marca regiones que NO controles (máximo 2 por turno)')
       }
       setObjectiveMode(false)
+      return
+    }
+    if (intimidateMode) {
+      const test = structuredClone(state)
+      if (intimidate(test, id)) {
+        act((s) => { intimidate(s, id) }, true)
+      } else {
+        setFlash('No puedes intimidar ahí: región rival activa adyacente a la tuya y con fichas (máx 3 por turno)')
+      }
+      setIntimidateMode(false)
       return
     }
     if (state.phase === 'redeploy') {
@@ -417,6 +431,17 @@ export default function App() {
                         <button onClick={() => setSelected(null)}>Cancelar</button>
                       </div>
                     )}
+                    {selInfo.champion && (
+                      <div className="confirmrow">
+                        <button className="primary" onClick={() => {
+                          act((s) => {
+                            const res = conquer(s, selRegion.id, false, true)
+                            if (!res.ok) setFlash(res.message)
+                          }, true)
+                          setSelected(null)
+                        }}>🗡 Cargar con el Campeón (1 ficha, ignora la defensa)</button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="sbad">{selInfo.reason}</div>
@@ -440,9 +465,14 @@ export default function App() {
               <button className="primary" disabled={!canRollDie} onClick={doDie}>
                 🎲 Dado de refuerzo {state.turn.diceUsed > 0 && `(${state.turn.diceUsed}/${maxDice})`}
               </button>
+              {activeFaction.powerId === 'intimidating' && state.turn.intimidated < 3 && (
+                <button className={intimidateMode ? 'primary' : ''} onClick={() => setIntimidateMode((v) => !v)}>
+                  😠 {intimidateMode ? 'Cancelar' : `Intimidar (${state.turn.intimidated}/3)`}
+                </button>
+              )}
               {activeFaction.markers > 0 && (
                 <button className={markerMode ? 'primary' : ''} onClick={() => setMarkerMode((v) => !v)}>
-                  {markerMode ? '✕ Cancelar colocación' : activeFaction.powerId === 'heroic' ? '🗡 Colocar héroe' : '🛡 Colocar fortaleza'}
+                  {markerMode ? '✕ Cancelar colocación' : '🛡 Colocar fortaleza'}
                 </button>
               )}
               <button disabled={!canDeclineNow(state)} onClick={() => { act((s) => { goIntoDecline(s); endTurn(s) }, true); clearTurnState() }}>
@@ -576,6 +606,7 @@ export default function App() {
         {markerMode && <div className="modehint">Elige una región tuya · <button onClick={() => setMarkerMode(false)}>Cancelar</button></div>}
         {bombMode && <div className="modehint">💣 Elige una región rival activa adyacente a las tuyas · <button onClick={() => setBombMode(false)}>Cancelar</button></div>}
         {objectiveMode && <div className="modehint">🎯 Marca una región que NO controles · <button onClick={() => setObjectiveMode(false)}>Cancelar</button></div>}
+        {intimidateMode && <div className="modehint">😠 Elige una región rival activa adyacente · <button onClick={() => setIntimidateMode(false)}>Cancelar</button></div>}
       </main>
 
       {isMobile ? (

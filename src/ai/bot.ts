@@ -8,7 +8,7 @@ import type { GameState } from '../game/types'
 
 export type BotAction =
   | { kind: 'pick'; index: number; label: string }
-  | { kind: 'conquer'; regionId: string; useDie: boolean; label: string }
+  | { kind: 'conquer'; regionId: string; useDie: boolean; champion?: boolean; label: string }
   | { kind: 'marker'; regionId: string; label: string }
   | { kind: 'worgen'; form: 'human' | 'werewolf'; label: string }
   | { kind: 'decline'; label: string }
@@ -74,7 +74,6 @@ export function chooseAction(state: GameState): BotAction {
       if (remaining <= 2) s += 3 - tokens * 0.4
       if (power.scoreBonus || race.scoreBonus) s += 2
       if (power.ignoresAdjacency || race.ignoresAdjacency) s += 1.5
-      if (c.powerId === 'wealthy' && remaining <= 1) s += 5
       if (player.coins < i) s = -Infinity
       if (s > bestScore) { bestScore = s; bestIdx = i }
     })
@@ -111,7 +110,7 @@ export function chooseAction(state: GameState): BotAction {
     }
   }
 
-  // place heroes / fortresses on the juiciest frontier region
+  // garrisoned: raise forts on the most exposed frontier regions
   if (f.markers > 0 && owned.length) {
     const target = [...owned].sort((a, b) => {
       const threat = (r: typeof a) =>
@@ -121,8 +120,7 @@ export function chooseAction(state: GameState): BotAction {
         }).length
       return threat(b) - threat(a)
     })[0]
-    const st = state.regions[target.id]
-    if ((f.powerId === 'heroic' && !st.hero) || (f.powerId === 'fortified' && st.fortress === 0)) {
+    if (state.regions[target.id].fortress === 0) {
       return { kind: 'marker', regionId: target.id, label: `refuerza ${target.name}` }
     }
   }
@@ -135,12 +133,21 @@ export function chooseAction(state: GameState): BotAction {
   const affordable = targets.filter((t) => t.cost <= f.hand)
   if (affordable.length) {
     const best = affordable[0]
-    // don't overextend: keep enough tokens to hold what we have late in the turn
     const leftAfter = f.hand - best.cost
     const needed = owned.length + 1
     if (leftAfter >= 0 && (best.ratio > 0.35 || leftAfter >= needed)) {
+      // the Champion is best spent on heavily defended ground
+      if (best.cost >= 3 && targets.find((t) => t.id === best.id)?.champion) {
+        return { kind: 'conquer', regionId: best.id, useDie: false, champion: true, label: `🗡 carga con el Campeón sobre ${REGION_BY_ID[best.id].name}` }
+      }
       return { kind: 'conquer', regionId: best.id, useDie: false, label: `ataca ${REGION_BY_ID[best.id].name}` }
     }
+  }
+
+  // champion charge: even without tokens for a real assault, one charge is one region
+  const champTarget = targets.find((t) => t.champion)
+  if (champTarget) {
+    return { kind: 'conquer', regionId: champTarget.id, useDie: false, champion: true, label: `🗡 carga con el Campeón sobre ${REGION_BY_ID[champTarget.id].name}` }
   }
 
   // last stand: try the reinforcement die on a cheap target
@@ -180,7 +187,7 @@ export function applyBotAction(state: GameState, action: BotAction): string {
       selectCombo(state, action.index)
       return action.label
     case 'conquer': {
-      const res = conquer(state, action.regionId, action.useDie)
+      const res = conquer(state, action.regionId, action.useDie, action.champion ?? false)
       return res.ok ? action.label : `${action.label} — ${res.message}`
     }
     case 'marker':

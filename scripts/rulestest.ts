@@ -1,10 +1,11 @@
 /** Regresión de las reglas - actualizado a mapa oficial small_a (7 regiones) */
 import {
-  beginTurn, conquer, conquestCost, createGame, defenseOf, diplomacyOptions, endTurn,
-  gatherTokens, goIntoDecline, needsDiplomacy, placeBomb, placeObjective, placeToken,
-  plunderThisTurn, salvageSouls, scoreFor, selectCombo, setPeace, setWorgenForm, startRedeploy,
+  beginTurn, conquer, conquestCost, createGame, defenseOf, endTurn,
+  gatherTokens, goIntoDecline, intimidate, placeBomb, placeObjective, placeToken,
+  plunderThisTurn, salvageSouls, scoreFor, selectCombo, setWorgenForm, startRedeploy,
 } from '../src/game/engine'
-import { RACES } from '../src/game/abilities'
+import { POWERS, RACES } from '../src/game/abilities'
+import { REGION_BY_ID } from '../src/game/engine'
 import type { GameState } from '../src/game/types'
 
 let ok = true
@@ -29,7 +30,7 @@ console.log('\n[1] Un asalto fallido cierra la fase de conquista')
   for (let seed = 0; seed < 400 && !sawFailure; seed++) {
     const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }], seed, 'small_a')
     s.phase = 'pick'
-    s.tray[0] = { raceId: 'orcs', powerId: 'merchant', bonusCoins: 0 } // orcos para que sa4 cueste 2 (no patria)
+    s.tray[0] = { raceId: 'orcs', powerId: 'ranger', bonusCoins: 0 } // orcos para que sa4 cueste 2 (no patria)
     selectCombo(s, 0)
     const f = s.factions[s.players[0].activeUid!]
     f.hand = 2
@@ -50,41 +51,37 @@ console.log('\n[1] Un asalto fallido cierra la fase de conquista')
   chk(sawFailure, `se provocó un fallo del dado en ${attempts} intentos`)
 }
 
-/* ---------- 2. la Diplomática funciona ---------- */
-console.log('\n[2] El poder Diplomática ya no es una carta muerta')
+/* ---------- 2. Habitante del Marjal ---------- */
+console.log('\n[2] El Habitante del Marjal cobra 1 moneda a quien pisa sus pantanos')
 {
-  const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }, { name: 'C', isBot: true }], 1, 'small_a')
-  s.phase = 'pick'
-  s.tray[0] = { raceId: 'humans', powerId: 'diplomat', bonusCoins: 0 }
-  selectCombo(s, 0)
-  const f = s.factions[s.players[0].activeUid!]
-  f.hand = 10
-  conquer(s, 'sa6')
+  const { s } = withRace('orcs')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'marshdweller', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa7', 'def', 2)               // sa7 = Pantano de los Zánganos
+  const coinsA = s.players[0].coins
+  const coinsB = s.players[1].coins
+  conquer(s, 'sa7')
+  chk(s.players[0].coins === coinsA - 1, `el atacante paga 1 moneda (${coinsA} -> ${s.players[0].coins})`)
+  chk(s.players[1].coins === coinsB + 1, `el marjalí las cobra (${coinsB} -> ${s.players[1].coins})`)
 
-  chk(needsDiplomacy(s), 'se pide elegir con quién firmar la paz')
-  chk(diplomacyOptions(s).length === 2, 'puede pactar con los 2 rivales')
-
-  // atacar a B lo descarta como socio
-  s.factions['b'] = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'berserk', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
-  s.players[1].activeUid = 'b'
-  setR(s, 'sa4', 'b', 1) // sa4 adyacente a sa6
-  conquer(s, 'sa4')
-  chk(s.turn.attacked.includes(1), 'se registra que has atacado a B')
-  chk(diplomacyOptions(s).join() === '2', 'B queda descartado: solo puedes pactar con C')
-
-  setPeace(s, 2)
-  chk(s.players[0].peaceWith === 2, 'se firma la paz con C')
-
-  // ahora C no puede atacar a A
-  startRedeploy(s); endTurn(s)
-  while (s.current !== 2) endTurn(s)
-  s.factions['c'] = { uid: 'c', playerId: 2, raceId: 'trolls', powerId: 'commando', inDecline: false, hand: 9, markers: 0, wispWalls: 0, bombs: 0 }
-  s.players[2].activeUid = 'c'
-  s.phase = 'conquer'
-  setR(s, 'sa3', 'c', 3)
-  const info = conquestCost(s, 'sa6')   // sa6 es de A
-  chk(!info.reachable && info.reason === 'Tratado diplomático', `C no puede atacar a A: "${info.reason}"`)
-  chk(conquestCost(s, 'sa7').reachable, 'pero sí puede atacar a otro sitio')
+  // el poder sigue activo con la raza en declive
+  def.inDecline = true
+  setR(s, 'sa7', 'def', 2)
+  const before = s.players[1].coins
+  conquer(s, 'sa7')
+  chk(s.players[1].coins === before + 1, 'incluso en declive cobra el peaje')
+}
+{
+  // sin Habitante del Marjal no hay peaje
+  const { s } = withRace('orcs')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa7', 'def', 2)
+  const coinsA = s.players[0].coins
+  conquer(s, 'sa7')
+  chk(s.players[0].coins === coinsA, 'un pantano normal no cobra peaje')
 }
 
 /* ---------- 3. la paz caduca en tu siguiente turno ---------- */
@@ -102,7 +99,7 @@ console.log('\n[3] La paz dura solo hasta tu siguiente turno')
 console.log('\n[4] Alianza vs Horda: patria, botín y neutrales')
 
 /** Prepara una partida con una facción activa concreta y mano infinita. */
-function withRace(raceId: string, powerId = 'merchant', seed = 7) {
+function withRace(raceId: string, powerId = 'ranger', seed = 7) {
   const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }], seed, 'small_a')
   s.phase = 'pick'
   s.tray[0] = { raceId, powerId, bonusCoins: 0 }
@@ -245,7 +242,7 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
 {
   // Trolls: regiones ocupadas −1
   const { s } = withRace('trolls')
-  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'merchant', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
+  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
   s.factions['b'] = b
   s.players[1].activeUid = 'b'
   setR(s, 'sa6', 'b', 2)
@@ -269,7 +266,7 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
   // Draenei: la primera ficha que pierden en cada turno rival no se descarta
   const { s } = withRace('draenei')
   const f = s.factions[s.players[0].activeUid!]
-  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'merchant', inDecline: false, hand: 10, markers: 0, wispWalls: 0, bombs: 0 }
+  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 10, markers: 0, wispWalls: 0, bombs: 0 }
   s.factions['b'] = b
   s.players[1].activeUid = 'b'
   // el turno pasa a B, que ataca dos regiones Draenei de A
@@ -290,12 +287,12 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
   chk(conquestCost(s, 'sa6').cost === 2, `forma huargo: 2+1 mar −1 = 2 (${conquestCost(s, 'sa6').cost})`)
   conquer(s, 'sa6')
   const wolfScore = scoreFor(s, 0).total
-  chk(wolfScore === 2, `huargo puntúa: 1 región +1 botín +1 mercader −1 forma = 2 (${wolfScore})`)
+  chk(wolfScore === 1, `huargo puntúa: 1 región +1 botín −1 forma = 1 (${wolfScore})`)
   const s2 = withRace('worgen').s
   setWorgenForm(s2, 'human')
   conquer(s2, 'sa6')
   const humanScore = scoreFor(s2, 0).total
-  chk(humanScore === 5, `humano puntúa: 1 + 1 botín + 1 mercader + 2 forma = 5 (${humanScore})`)
+  chk(humanScore === 4, `humano puntúa: 1 + 1 botín + 2 forma = 4 (${humanScore})`)
 }
 {
   // Elfos de la Noche: muro wisp en cada bosque conquistado
@@ -332,7 +329,7 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
 {
   // Renegados: salvar almas por fichas descartadas
   const { s, f } = withRace('forsaken')
-  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'merchant', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
+  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
   s.factions['b'] = b
   s.players[1].activeUid = 'b'
   setR(s, 'sa6', 'b', 2)
@@ -348,7 +345,7 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
 {
   // Pandaren: Armonía, atacar cuesta 2 monedas
   const { s } = withRace('orcs')
-  const bp = { uid: 'bp', playerId: 1, raceId: 'pandaren', powerId: 'merchant', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
+  const bp = { uid: 'bp', playerId: 1, raceId: 'pandaren', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
   s.factions['bp'] = bp
   s.players[1].activeUid = 'bp'
   s.players[0].harmony = 1
@@ -371,7 +368,7 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
   const marked = Object.values(s.regions).filter((st) => st.mo).length
   chk(marked === 2, `acaba el turno con los 2 objetivos sobre el mapa (${marked})`)
   // B conquista la región marcada: +2 para B y +2 para los Humanos
-  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'merchant', inDecline: false, hand: 5, markers: 0, wispWalls: 0, bombs: 0 }
+  const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 5, markers: 0, wispWalls: 0, bombs: 0 }
   s.factions['b'] = b
   s.players[1].activeUid = 'b'
   s.current = 1
@@ -388,8 +385,8 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
   let exploded = false
   let fizzled = false
   for (let seed = 0; seed < 300 && (!exploded || !fizzled); seed++) {
-    const { s, f } = withRace('goblins', 'merchant', 100 + seed)
-    const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'merchant', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
+    const { s, f } = withRace('goblins', 'ranger', 100 + seed)
+    const b = { uid: 'b', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0 }
     s.factions['b'] = b
     s.players[1].activeUid = 'b'
     setR(s, 'sa6', 'b', 2)
@@ -409,6 +406,149 @@ console.log('\n[6] Razas oficiales: efectos nuevos')
   chk(fizzled, 'en alguna semilla la bomba falla y la región sigue ocupada')
 
   function chk2(c: boolean, m: string) { if (!c) { console.log('  FAIL  ' + m); ok = false } }
+}
+
+
+/* ---------- 7. Poderes oficiales ---------- */
+console.log('\n[7] Poderes oficiales')
+chk(POWERS.length === 20, `hay exactamente 20 poderes oficiales (${POWERS.length})`)
+{
+  // Herrera: todo −1
+  const { s } = withRace('orcs', 'blacksmith')
+  const enemy = conquestCost(s, 'sa2')    // vacía, por mar: 2+1−1
+  chk(enemy.cost === 2, `el Herrero deja la conquista enemiga vacía en 2 (${enemy.cost})`)
+}
+{
+  // Navegante: desembarco sin ficha extra
+  const { s } = withRace('orcs', 'sailing')
+  const enemy = conquestCost(s, 'sa2')    // vacía: 2 base, sin +1 de mar
+  chk(enemy.cost === 2 && enemy.viaSea, `el Navegante embarca gratis (coste ${enemy.cost})`)
+}
+{
+  // Guarnición: fortalezas en todas las regiones al acabar el turno
+  const { s, f } = withRace('orcs', 'garrisoned')
+  conquer(s, 'sa6')
+  conquer(s, 'sa4')
+  chk(f.markers === 10, `la Guarnición arranca con 10 fuertes en reserva (${f.markers})`)
+  f.hand = 0                             // sin sobrantes: cada región queda con su ficha
+  endTurn(s)
+  chk(s.regions['sa6'].fortress === 1 && s.regions['sa4'].fortress === 1, 'cada región ocupada recibe una Fortaleza')
+  // sa6 quedó con 2 fichas de la conquista + 1 fuerte
+  chk(defenseOf(s, 'sa6') === 3, `la fortaleza defiende +1 (2 fichas + 1 fuerte: ${defenseOf(s, 'sa6')})`)
+}
+{
+  // Defensiva: torre de vigía en una llanura rodeada y bloquea la conquista
+  const { s, f } = withRace('orcs', 'defensive')
+  conquer(s, 'sa6')                       // Llanos de Mulgore (fields, costera)
+  f.hand = 0
+  for (const nb of REGION_BY_ID['sa6'].neighbors) {
+    s.regions[nb] = { owner: s.players[0].activeUid!, tokens: 1, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
+  }
+  startRedeploy(s); endTurn(s)
+  const towered = Object.entries(s.regions).filter(([, st]) => st.tower).map(([id]) => id)
+  chk(towered.length === 1, `se coloca exactamente 1 torre (${towered.join(',') || 'ninguna'})`)
+  if (towered.length === 1) {
+    const info = REGION_BY_ID[towered[0]]
+    chk(info.terrain === 'fields', `la torre se alza en una Llanura (${info.name})`)
+  }
+}
+{
+  // Enfurecida: monedas por cada defensor que plantó cara
+  const { s } = withRace('orcs', 'enraged')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa6', 'def', 3)                // 3 defensores
+  conquer(s, 'sa6')
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some((d) => d.includes('Enfurecida: +3')), `Enfurecida suma los 3 defensores: ${sc.detail.join(' | ')}`)
+}
+{
+  // Maestre de Guerra: +1 por región ocupada conquistada
+  const { s } = withRace('orcs', 'battlemaster')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa6', 'def', 1)
+  conquer(s, 'sa6')
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some((d) => d.includes('Maestre de Guerra: +1')), `Maestre de Guerra cobra su +1: ${sc.detail.join(' | ')}`)
+}
+{
+  // Arqueóloga: +1 por loseta en regiones propias
+  const { s } = withRace('orcs', 'archaeologist')
+  s.legendary = [{ defId: 'dark_portal', regionId: 'sa6', revealed: false, isArtifact: false }]
+  conquer(s, 'sa6')
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some((d) => d.includes('Arqueóloga: +1')), `la Arqueóloga cobra por el Portal Oscuro: ${sc.detail.join(' | ')}`)
+}
+{
+  // Exploradora: +1 por isla con presencia
+  const { s } = withRace('orcs', 'explorer')
+  conquer(s, 'sa6')
+  const sc = scoreFor(s, 0)
+  chk(sc.detail.some((d) => d.includes('Exploradora: +1')), `una isla conquistada, +1: ${sc.detail.join(' | ')}`)
+}
+{
+  // Maestra de Bestias: fichas extra por cada colina al empezar el turno
+  const { s, f } = withRace('orcs', 'beastmaster')
+  conquer(s, 'sa6')
+  startRedeploy(s); endTurn(s)
+  while (s.current !== 0 && s.phase !== 'gameover') endTurn(s)
+  beginTurn(s)                            // sa3 (colina) aún no es nuestra: 0 bestias
+  chk(f.beasts === 0, 'sin colinas no hay bestias')
+  // conquistamos la colina sa3 y esperamos al turno siguiente
+  s.phase = 'conquer'
+  f.hand = 10
+  conquer(s, 'sa3')
+  startRedeploy(s); endTurn(s)
+  while (s.current !== 0 && s.phase !== 'gameover') endTurn(s)
+  const handBefore = f.hand
+  beginTurn(s)
+  chk(f.beasts === 1, `una colina ocupada, una bestia (${f.beasts})`)
+  chk(f.hand === handBefore + 1, `la bestia se suma a la mano (${handBefore} -> ${f.hand})`)
+}
+{
+  // Intimidadora: mueve la ficha a otra región del mismo rival, o la descarta
+  const { s } = withRace('orcs', 'intimidating')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'ranger', inDecline: false, hand: 5, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa7', s.players[0].activeUid!, 1)   // nuestra cabeza de playa
+  setR(s, 'sa6', 'def', 2)
+  setR(s, 'sa4', 'def', 1)
+  chk(intimidate(s, 'sa6'), 'intimida una región rival adyacente')
+  chk(s.regions['sa6'].tokens === 1 && s.regions['sa4'].tokens === 2, 'la ficha se retira hacia la otra región del rival')
+  chk(s.turn.intimidated === 1, `queda anotado (1/3)`)
+  setR(s, 'sa4', null, 0)                 // sin dónde replegarse: descarte
+  const handB = def.hand
+  chk(intimidate(s, 'sa6'), 'intimida de nuevo')
+  chk(s.regions['sa6'].tokens === 0 && def.hand === handB + 1, 'la ficha empujada vuelve a la reserva del rival')
+}
+{
+  // Campeón: conquista adyacente por 1 ficha y rescate al ser capturado
+  const { s } = withRace('orcs', 'champion')
+  const def = { uid: 'def', playerId: 1, raceId: 'tauren', powerId: 'ranger', inDecline: false, hand: 10, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
+  s.factions['def'] = def
+  s.players[1].activeUid = 'def'
+  setR(s, 'sa7', s.players[0].activeUid!, 1)   // cabeza de playa propia
+  setR(s, 'sa6', 'def', 5)                     // muy defendida
+  const info = conquestCost(s, 'sa6')
+  chk(info.champion && info.cost >= 6, `la región cuesta ${info.cost}, pero el Campeón puede cargar`)
+  s.players[0].activeUid && (s.factions[s.players[0].activeUid].hand = 2)
+  const res = conquer(s, 'sa6', false, true)
+  chk(res.ok, 'el Campeón conquista sin importar los defensores')
+  chk(s.regions['sa6'].tokens === 0 && s.regions['sa6'].hero, 'la región queda guarnecida solo por el Campeón')
+  chk(s.turn.championUsed, 'la carga queda gastada este turno')
+  chk(defenseOf(s, 'sa6') === 1, `el Campeón defiende como 1 ficha (${defenseOf(s, 'sa6')})`)
+  // el rival lo captura: paga 1 moneda de rescate
+  const coinsA = s.players[0].coins
+  s.current = 1
+  s.phase = 'conquer'
+  s.turn = { ...s.turn, assaultFailed: false }
+  conquer(s, 'sa6')
+  chk(!s.regions['sa6'].hero, 'el Campeón capturado sale del tablero')
+  chk(s.players[0].coins === coinsA - 1, `el dueño paga 1 moneda de rescate (${coinsA} -> ${s.players[0].coins})`)
 }
 
 console.log(ok ? '\nREGLAS CORRECTAS ✅' : '\nHAY FALLOS ❌')

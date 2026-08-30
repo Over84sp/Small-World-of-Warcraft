@@ -126,9 +126,34 @@ Aproximaciones declaradas (texto oficial no verificado al 100%): colocación de 
 Militares (aquí: cualquier región ajena), dado extra Gnomo modelado como +1 dado/turno,
 y Armonía limitada a 1 ficha por jugador a la vez.
 
+## Bloque 2 — Poderes oficiales (HECHO ✅)
+
+Los 20 poderes especiales son ahora los del juego oficial
+([fuente](https://en.namu.wiki/w/Small_World_of_Warcraft/세부_내용)); fuera los heredados del
+Small World clásico (Alquimista, Berserker, Comando, Voladora, Mercader, Montada, Saqueadora,
+Fortificada, Heroica, Resistente, Rica, Diplomática, Espiritual…):
+
+- **Monedas extra**: Arqueóloga (+1/loseta), Granjera, Pescadora (costera o junto a lago),
+  Herborista (colinas), Montañesa (montañas), Guardabosques (bosques), Caminante de Pantanos,
+  Minera (cavernas, latente), Exploradora (+1/isla), Maestre de Guerra (+1/región ocupada
+  conquistada), Enfurecida (+monedas por cada defensor en regiones con 2+).
+- **Descuentos**: Herrero (todo −1), Navegante (desembarco sin +1).
+- **Defensa**: Defensiva (Torre de Vigía 1/turno en llanura rodeada: no conquistable),
+  Guarnición (10 fuertes, +1 defensa y +1 moneda cada uno), Habitante del Marjal (peaje de
+  1 moneda en sus pantanos, activo en declive).
+- **Acciones**: Campeón (1/turno conquista adyacente con 1 ficha; defiende +1; rescate de
+  1 moneda al ser capturado), Maestra de Bestias (+1 ficha/colina al empezar el turno, máx 5),
+  Intimidadora (3/turno mueve 1 ficha rival adyacente), Maga de Portales (intercambia fichas
+  entre regiones mágicas 2/turno, latente hasta el mapa con magia).
+
+Aproximaciones declaradas: costes de fichas de cada poder (los oficiales no constan en las
+fuentes), fichas de bestia fundidas en la mano, Torre de Vigía autocolocada y retirada al
+declinar, Campeón que no apila fichas de raza en su región, y el peaje del Marjal cobrado
+solo al conquistar (no al usar habilidades sobre la región).
+
 ## Pendiente para 100% fiel
 - [x] ~~Bloque 1: razas oficiales~~ (16 razas con efectos oficiales; Múrlocs = nativos; Etéreos y Kobolds entran)
-- [ ] Bloque 2: sustituir los 20 poderes clásicos por los oficiales (Arqueólogo, Herrero, Campeón, Enfurecida…)
+- [x] ~~Bloque 2: poderes oficiales~~ (los 20 del juego oficial; fuera los del Small World clásico)
 - [ ] Bloque 3: Wisp Walls de frontera impresas + Fuertes neutrales del setup
 - [ ] Bloque 4: terrenos Mar/Lago, Caverna y Mágica en el generador (activa Naga, Kobolds, Elfos de Sangre y Etéreos plenos)
 - [ ] Bloque 5: lugares legendarios y artefactos oficiales (Capilla de la Luz, Piedra de Reunión, Espíritu Sanador, Égida, Cenizas de Al'ar)

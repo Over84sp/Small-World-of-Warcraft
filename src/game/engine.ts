@@ -191,6 +191,7 @@ export function defenseOf(state: GameState, regionId: string): number {
   const region = REGION_BY_ID[regionId]
   const st = state.regions[regionId]
   let d = st.tokens + st.fortress + (region.mountain ? 1 : 0) + (st.wisp ?? 0)
+  if (st.hero) d += 1 // the Champion token counts as 1 race token when defending
   if (st.owner && st.owner !== LOST_TRIBE) {
     const f = state.factions[st.owner]
     for (const a of abilitiesOf(f)) d += a.defenseBonus?.(ctxOf(state, f), region) ?? 0
@@ -211,6 +212,8 @@ export interface CostInfo {
   airstrike: boolean
   /** ethereals: this conquest uses their once-per-turn legendary discount */
   ethereal: boolean
+  /** Champion power: could take this adjacent region for a single token */
+  champion: boolean
 }
 
 export function conquestCost(state: GameState, regionId: string): CostInfo {
@@ -218,7 +221,7 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const st = state.regions[regionId]
   const player = state.players[state.current]
   const uid = player.activeUid
-  const blank = { airstrike: false, ethereal: false }
+  const blank = { airstrike: false, ethereal: false, champion: false }
   if (!uid) return { cost: 99, reachable: false, reason: 'Sin raza activa', viaSea: false, homeland: false, plunder: false, ...blank }
   const f = state.factions[uid]
   const ctx = ctxOf(state, f)
@@ -226,7 +229,7 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   if (state.turn.assaultFailed) {
     return { cost: 99, reachable: false, reason: 'El asalto fallido ha terminado tus conquistas', viaSea: false, homeland: false, plunder: false, ...blank }
   }
-  if (st.hero) return { cost: 99, reachable: false, reason: 'Protegida por un héroe', viaSea: false, homeland: false, plunder: false, ...blank }
+  if (st.tower) return { cost: 99, reachable: false, reason: 'Protegida por una Torre de Vigía', viaSea: false, homeland: false, plunder: false, ...blank }
   if (st.owner === uid) return { cost: 99, reachable: false, reason: 'Ya la ocupas', viaSea: false, homeland: false, plunder: false, ...blank }
   if (st.owner && st.owner !== LOST_TRIBE) {
     const enemy = state.factions[st.owner]
@@ -250,6 +253,9 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
 
   const viaSea = !adjacent && !ignores && seaEntry
   const usesAirstrike = !adjacent && !ignores && !seaEntry && airstrike
+  // the Champion may take any adjacent region for a single token, once per turn
+  const champion = !state.turn.championUsed && abilitiesOf(f).some((a) => a.champion) &&
+    adjacent && f.hand >= 1
 
   let cost = 2 + defenseOf(state, regionId)
   for (const a of abilitiesOf(f)) cost += a.conquestCost?.(ctx, region) ?? 0
@@ -257,7 +263,7 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
   const homeland = region.faction && region.faction === sideOf(f)
   if (homeland) cost -= 1
   if (viaSea) {
-    const freeSea = f.powerId === 'seafaring'
+    const freeSea = f.powerId === 'sailing'
     if (!freeSea) cost += 1
   }
   // worgen in wolf form pay 1 token less on every conquest this turn
@@ -278,6 +284,7 @@ export function conquestCost(state: GameState, regionId: string): CostInfo {
     plunder: isEnemyRegion(sideOf(f), region),
     airstrike: usesAirstrike,
     ethereal,
+    champion,
   }
 }
 
@@ -343,7 +350,7 @@ export function createGame(configs: PlayerConfig[], seed = Date.now(), boardId?:
   }
 
   for (const r of REGIONS) {
-    const st: RegionState = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
+    const st: RegionState = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
     if (!landmasses.includes(r.landmass)) { state.regions[r.id] = st; continue }
     if (r.lostTribe) {
       st.owner = LOST_TRIBE
@@ -417,6 +424,7 @@ function emptyTurn() {
     assaultFailed: false, attacked: [],
     worgenForm: null, draeneiSaved: false, etherealUsed: false, airstrikeUsed: false,
     souls: 0, pandarenStruck: [], moPlaced: 0,
+    championUsed: false, intimidated: 0, defenders: {},
   }
 }
 
@@ -453,10 +461,10 @@ export function selectCombo(state: GameState, index: number): GameState {
     markers: POWER_BY_ID[combo.powerId]?.markers ?? 0,
     wispWalls: combo.raceId === 'nightelves' ? 9 : 0,
     bombs: combo.raceId === 'goblins' ? 12 : 0,
+    beasts: 0,
   }
   state.factions[uid] = faction
   player.activeUid = uid
-  if (combo.powerId === 'wealthy') player.coins += 7
 
   state.tray.splice(index, 1)
   refillTray(state)
@@ -498,6 +506,17 @@ export function beginTurn(state: GameState) {
   } else {
     state.phase = 'conquer'
     gatherTokens(state)
+    const f = state.factions[player.activeUid]
+    // Beast Master: 1 beast token per hill region held (max 5); they fight as race tokens
+    if (f.powerId === 'beastmaster' && !f.inDecline) {
+      const hills = regionsOf(state, f.uid).filter((r) => r.terrain === 'hills').length
+      const beasts = Math.min(5, hills)
+      f.beasts = beasts
+      f.hand += beasts
+      if (beasts > 0) log(state, player.id, `🐾 ${beasts} bestia${beasts > 1 ? 's' : ''} se une${beasts > 1 ? 'n' : ''} a la manada (+${beasts} fichas)`)
+    } else {
+      f.beasts = 0
+    }
   }
 }
 
@@ -521,7 +540,7 @@ function resolveBombs(state: GameState) {
         ownerFaction.hand += Math.max(0, st.tokens - 1)
       }
       const label = factionLabel(ownerFaction)
-      state.regions[rid] = { ...st, owner: null, tokens: 0, wisp: 0 }
+      state.regions[rid] = { ...st, owner: null, tokens: 0, wisp: 0, hero: false, fortress: 0, tower: false }
       log(state, player.id, `💥 La bomba EXPLOTA en ${REGION_BY_ID[rid].name}: ${label} pierde todas sus fichas de la región`)
     } else {
       log(state, player.id, `💣 Bomba fallida en ${REGION_BY_ID[rid].name}: no pasa nada`)
@@ -535,7 +554,7 @@ export interface ConquerResult {
   rolled?: number
 }
 
-export function conquer(state: GameState, regionId: string, useDie = false): ConquerResult {
+export function conquer(state: GameState, regionId: string, useDie = false, useChampion = false): ConquerResult {
   if (state.phase !== 'conquer') return { ok: false, message: 'No es la fase de conquista' }
   if (state.turn.assaultFailed) {
     return { ok: false, message: 'Tu asalto fracasó: la fase de conquista ha terminado' }
@@ -546,12 +565,13 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
   const f = state.factions[uid]
   const info = conquestCost(state, regionId)
   if (!info.reachable) return { ok: false, message: info.reason ?? 'Inalcanzable' }
+  if (useChampion && !info.champion) return { ok: false, message: 'El Campeón no puede cargar ahí (o ya lo has usado este turno)' }
 
-  // tauren always pay at least 2 (already baked into info.cost by conquestCost)
-  const effCost = info.cost
+  // the Champion fights alone: one token covers any number of defenders
+  const effCost = useChampion ? 1 : info.cost
 
   let rolled: number | undefined
-  if (f.hand < effCost) {
+  if (f.hand < effCost && !useChampion) {
     const maxDice = 1 + (abilitiesOf(f).find((a) => a.extraDice)?.extraDice ?? 0)
     if (!useDie) return { ok: false, message: `Necesitas ${effCost} fichas y tienes ${f.hand}` }
     if (state.turn.diceUsed >= maxDice) return { ok: false, message: 'Ya has usado el dado de refuerzo' }
@@ -570,8 +590,33 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
   }
 
   const st = state.regions[regionId]
-  const spend = Math.min(f.hand, effCost)
+  // the Enraged power feeds on the defenders that stood their ground
+  if (st.tokens >= 2) state.turn.defenders[regionId] = st.tokens
+  const spend = useChampion ? 0 : Math.min(f.hand, effCost)
   f.hand -= spend
+
+  // a captured champion is ransomed back: the loser pays 1 coin and takes him home
+  const capturedFrom = st.hero && st.owner && st.owner !== LOST_TRIBE
+    ? state.factions[st.owner]
+    : null
+  if (capturedFrom) {
+    const loser = state.players[capturedFrom.playerId]
+    const ransom = Math.min(1, loser.coins)
+    loser.coins -= ransom
+    player.coins += ransom
+    log(state, loser.id, `🗡 Rescata a su Campeón pagando ${ransom} moneda a ${player.name}`)
+  }
+
+  // Marshdweller: attacking their swamps bleeds 1 coin for the defender
+  if (st.owner && st.owner !== LOST_TRIBE) {
+    const defF = state.factions[st.owner]
+    if (POWER_BY_ID[defF.powerId]?.marshdweller && REGION_BY_ID[regionId].terrain === 'swamp') {
+      const tax = Math.min(1, player.coins)
+      player.coins -= tax
+      state.players[defF.playerId].coins += tax
+      log(state, defF.playerId, `🌿 ${player.name} paga ${tax} moneda por pisar el Marjal de ${factionLabel(defF)}`)
+    }
+  }
 
   // defender loses one token, gets the rest back
   if (st.owner && st.owner !== LOST_TRIBE) {
@@ -608,18 +653,19 @@ export function conquer(state: GameState, regionId: string, useDie = false): Con
     if (f.raceId === 'forsaken') state.turn.souls += 1
     log(state, player.id, `somete a los Múrlocs de ${REGION_BY_ID[regionId].name}`)
   } else {
-    log(state, player.id, `conquista ${REGION_BY_ID[regionId].name}${info.viaSea ? ' (desembarco)' : ''}${info.airstrike ? ' (asalto aéreo)' : ''}`)
+    log(state, player.id, `conquista ${REGION_BY_ID[regionId].name}${info.viaSea ? ' (desembarco)' : ''}${info.airstrike ? ' (asalto aéreo)' : ''}${useChampion ? ' (carga el Campeón)' : ''}`)
   }
 
   st.owner = uid
   st.tokens = spend
   st.fortress = 0
-  st.hero = false
+  st.hero = useChampion
   st.wisp = 0
   state.turn.conquered.push(regionId)
   state.turn.firstConquestDone = true
   if (info.airstrike) state.turn.airstrikeUsed = true
   if (info.ethereal) state.turn.etherealUsed = true
+  if (useChampion) state.turn.championUsed = true
 
   // night elves: every forest they take gets a wisp wall while they have tokens for it
   if (f.raceId === 'nightelves' && REGION_BY_ID[regionId].terrain === 'forest' && f.wispWalls > 0 && st.wisp === 0) {
@@ -667,7 +713,7 @@ export function goIntoDecline(state: GameState): GameState {
   if (player.declineUid) {
     const old = state.factions[player.declineUid]
     for (const r of regionsOf(state, old.uid)) {
-      state.regions[r.id] = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
+      state.regions[r.id] = { owner: null, tokens: 0, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
     }
     delete state.factions[old.uid]
     log(state, player.id, `${factionLabel(old)} desaparece del mundo`)
@@ -679,6 +725,7 @@ export function goIntoDecline(state: GameState): GameState {
     const st = state.regions[r.id]
     if (!keepsAll) st.tokens = min
     st.hero = false
+    st.tower = false // the watchtower falls when the race abandons the field
   }
   f.hand = 0
   f.inDecline = true
@@ -743,15 +790,10 @@ export function placeMarker(state: GameState, regionId: string): GameState {
   if (f.markers <= 0) return state
   const st = state.regions[regionId]
   if (st.owner !== uid) return state
-  if (f.powerId === 'heroic') {
-    if (st.hero) return state
-    st.hero = true
-  } else if (f.powerId === 'fortified') {
-    if (st.fortress > 0) return state
-    st.fortress += 1
-  } else return state
+  if (st.fortress > 0) return state
+  st.fortress += 1
   f.markers -= 1
-  log(state, player.id, `coloca ${f.powerId === 'heroic' ? 'un héroe' : 'una fortaleza'} en ${REGION_BY_ID[regionId].name}`)
+  log(state, player.id, `🏗 levanta una Fortaleza en ${REGION_BY_ID[regionId].name} (+1 defensa)`)
   return state
 }
 
@@ -784,6 +826,69 @@ export function salvageSouls(state: GameState, count: number): GameState {
   f.hand += n
   log(state, player.id, `\u{1F47B} Salva ${n} alma${n > 1 ? 's' : ''} pagando ${n} moneda${n > 1 ? 's' : ''}: +${n} Renegado${n > 1 ? 's' : ''} en mano`)
   return state
+}
+
+/**
+ * Intimidating: move 1 token of an adjacent enemy region to another region
+ * held by that same faction (or discard it if it has nowhere to go).
+ */
+export function intimidate(state: GameState, regionId: string): boolean {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid) return false
+  const f = state.factions[uid]
+  if (!abilitiesOf(f).some((a) => a.intimidating)) return false
+  if (state.turn.intimidated >= 3) return false
+  const st = state.regions[regionId]
+  if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
+  const enemy = state.factions[st.owner]
+  if (enemy.inDecline || enemy.playerId === player.id) return false
+  if (st.tokens < 1) return false
+  const adjacent = regionsOf(state, uid).some((r) => r.neighbors.includes(regionId))
+  if (!adjacent) return false
+  // pick where the bullied token goes: the enemy's biggest other region
+  const others = regionsOf(state, enemy.uid).filter((r) => r.id !== regionId)
+  const dest = others.sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)[0]
+  st.tokens -= 1
+  state.turn.intimidated += 1
+  if (dest) {
+    state.regions[dest.id].tokens += 1
+    log(state, player.id, `😠 Intimida a ${factionLabel(enemy)}: 1 ficha se retira de ${REGION_BY_ID[regionId].name} hacia ${dest.name} (${state.turn.intimidated}/3)`)
+  } else {
+    enemy.hand += 1
+    log(state, player.id, `😠 Intimida a ${factionLabel(enemy)}: 1 ficha de ${REGION_BY_ID[regionId].name} se bate en retirada a su reserva (${state.turn.intimidated}/3)`)
+  }
+  return true
+}
+
+/**
+ * Portal Mage: swap every token (except mountains and legendary markers)
+ * between two magic regions. Dormant until the map gains magic terrain.
+ */
+export function portalSwap(state: GameState, regionA: string, regionB: string): boolean {
+  const player = state.players[state.current]
+  const uid = player.activeUid
+  if (!uid) return false
+  const f = state.factions[uid]
+  if (!abilitiesOf(f).some((a) => a.portalmage)) return false
+  const a = state.regions[regionA]
+  const b = state.regions[regionB]
+  if (!a || !b) return false
+  if (REGION_BY_ID[regionA].terrain !== 'magic' || REGION_BY_ID[regionB].terrain !== 'magic') return false
+  const swap = (x: typeof a, y: typeof b) => {
+    const tokens = x.tokens
+    x.tokens = y.tokens
+    y.tokens = tokens
+    const owner = x.owner
+    x.owner = y.owner
+    y.owner = owner
+    const wisp = x.wisp
+    x.wisp = y.wisp
+    y.wisp = wisp
+  }
+  swap(a, b)
+  log(state, player.id, `🌀 Portal entre ${REGION_BY_ID[regionA].name} y ${REGION_BY_ID[regionB].name}: las guarniciones se intercambian`)
+  return true
 }
 
 /** goblins: glue a bomb to an adjacent region held by another player's active race */
@@ -873,6 +978,49 @@ function autoRaceMarkers(state: GameState) {
   if (f.raceId === 'forsaken' && player.isBot) {
     salvageSouls(state, Math.max(0, player.coins - 2))
   }
+
+  // garrisoned: every region they hold gets a fortress while the pool lasts
+  if (f.powerId === 'garrisoned') {
+    for (const r of regionsOf(state, uid)) {
+      const st = state.regions[r.id]
+      if (st.fortress === 0 && f.markers > 0) {
+        st.fortress += 1
+        f.markers -= 1
+      }
+    }
+  }
+
+  // defensive: one watchtower per turn on a field region they surround
+  if (f.powerId === 'defensive') {
+    const spot = regionsOf(state, uid).find((r) => {
+      if (r.terrain !== 'fields' || state.regions[r.id].tower) return false
+      const nbs = r.neighbors
+      if (!nbs.length) return false
+      const mine = nbs.filter((n) => state.regions[n].owner === uid).length
+      return mine * 2 > nbs.length
+    })
+    if (spot) {
+      state.regions[spot.id].tower = true
+      log(state, player.id, `🗼 Erige una Torre de Vigía en ${spot.name}: imposible de conquistar`)
+    }
+  }
+
+  // intimidating bots bully the strongest adjacent enemy region
+  if (f.powerId === 'intimidating' && player.isBot) {
+    const targets = boardRegions(state)
+      .filter((r) => {
+        const st = state.regions[r.id]
+        if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
+        const enemy = state.factions[st.owner]
+        return !enemy.inDecline && enemy.playerId !== player.id && st.tokens >= 1 &&
+          regionsOf(state, uid).some((mine) => mine.neighbors.includes(r.id))
+      })
+      .sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)
+    while (state.turn.intimidated < 3 && targets.length) {
+      const t = targets.shift()!
+      if (state.regions[t.id].tokens >= 1) intimidate(state, t.id)
+    }
+  }
 }
 
 /** opponents the Diplomat may sign peace with this turn */
@@ -955,6 +1103,20 @@ export function scoreFor(state: GameState, playerId: number): { total: number; d
   }
 
   if (plunderExtra) total += plunderExtra
+
+  // Enraged: coins per defender token that stood in the regions taken this turn
+  const activeF = player.activeUid ? state.factions[player.activeUid] : null
+  if (activeF && !activeF.inDecline && POWER_BY_ID[activeF.powerId]?.enraged) {
+    let rage = 0
+    for (const rid of state.turn.conquered) {
+      const defenders = state.turn.defenders[rid] ?? 0
+      if (defenders >= 2) rage += defenders
+    }
+    if (rage) {
+      total += rage
+      detail.push(`  Enfurecida: +${rage}`)
+    }
+  }
 
   // worgen: the form chosen this turn shifts the score
   if (player.activeUid && state.factions[player.activeUid].raceId === 'worgen' && !state.factions[player.activeUid].inDecline) {
@@ -1083,11 +1245,11 @@ export function endTurn(state: GameState): GameState {
 }
 
 /** legal conquest targets for the current player */
-export function legalTargets(state: GameState): { id: string; cost: number; viaSea: boolean }[] {
-  const out: { id: string; cost: number; viaSea: boolean }[] = []
+export function legalTargets(state: GameState): { id: string; cost: number; viaSea: boolean; champion: boolean }[] {
+  const out: { id: string; cost: number; viaSea: boolean; champion: boolean }[] = []
   for (const r of boardRegions(state)) {
     const info = conquestCost(state, r.id)
-    if (info.reachable) out.push({ id: r.id, cost: info.cost, viaSea: info.viaSea })
+    if (info.reachable) out.push({ id: r.id, cost: info.cost, viaSea: info.viaSea, champion: info.champion })
   }
   return out
 }

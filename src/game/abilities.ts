@@ -127,27 +127,64 @@ export const RACES: Ability[] = [
   },
 ]
 
+/**
+ * The 20 official special powers (names translated by hand, token costs are
+ * sensible approximations — the official per-badge token values are not
+ * documented in the sources we consulted).
+ */
 export const POWERS: Ability[] = [
-  { id: 'alchemist', name: 'Alquimista', tokens: 4, text: '+2 monedas al final de cada turno mientras esté activa.', scoreBonus: (ctx) => (ctx.faction.inDecline ? 0 : 2) },
-  { id: 'berserk', name: 'Berserker', tokens: 4, text: 'Puede usar el dado de refuerzo 2 veces por turno.', extraDice: 1 },
-  { id: 'commando', name: 'Comando', tokens: 4, text: 'Todas las conquistas cuestan 1 ficha menos.', conquestCost: () => -1 },
-  { id: 'flying', name: 'Voladora', tokens: 5, text: 'Puede conquistar cualquier región del mapa sin adyacencia.', ignoresAdjacency: () => true },
-  { id: 'forest', name: 'del Bosque', tokens: 4, text: '+1 moneda por cada Bosque ocupado.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'forest') },
-  { id: 'hill', name: 'de las Colinas', tokens: 4, text: '+1 moneda por cada Colina ocupada.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'hills') },
-  { id: 'swamp', name: 'del Pantano', tokens: 4, text: '+1 moneda por cada Pantano ocupado.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'swamp') },
-  { id: 'merchant', name: 'Mercader', tokens: 2, text: '+1 moneda por cada región ocupada.', scoreBonus: (ctx) => ctx.owned.length },
-  { id: 'mounted', name: 'Montada', tokens: 5, text: 'Llanuras y Colinas cuestan 1 ficha menos.', conquestCost: (_c, r) => (r.terrain === 'fields' || r.terrain === 'hills' ? -1 : 0) },
-  { id: 'pillaging', name: 'Saqueadora', tokens: 5, text: '+1 moneda por cada región ocupada por un rival que conquiste este turno.', scoreBonus: (ctx) => (ctx.faction.inDecline ? 0 : ctx.state.turn.conqueredOccupied.length) },
-  { id: 'seafaring', name: 'Navegante', tokens: 5, text: 'Entrar por mar es gratis; +1 moneda por región costera.', conquestCost: () => 0, scoreBonus: (ctx) => count(ctx, (r) => r.coastal) },
-  { id: 'fortified', name: 'Fortificada', tokens: 3, text: 'Coloca hasta 6 fortalezas (+1 defensa y +1 moneda cada una).', markers: 6 },
-  { id: 'heroic', name: 'Heroica', tokens: 5, text: '2 héroes: la región que ocupan es inmune a la conquista.', markers: 2 },
-  { id: 'stout', name: 'Resistente', tokens: 4, text: 'Puede entrar en declive justo después de conquistar, en el mismo turno.', declineAfterConquest: true },
-  { id: 'underworld', name: 'Subterránea', tokens: 5, text: '+1 moneda por cada Lugar Legendario ocupado.', scoreBonus: (ctx) => count(ctx, (r) => !!r.landmark) },
-  { id: 'wealthy', name: 'Rica', tokens: 4, text: '+7 monedas al final del turno en que la eliges.' },
-  { id: 'portalmage', name: 'Maga de Portales', tokens: 5, text: 'Puede conquistar sin adyacencia cualquier región con Lugar Legendario.', ignoresAdjacency: (_c, r) => !!r.landmark },
-  { id: 'diplomat', name: 'Diplomática', tokens: 5, text: 'Al acabar el turno firma la paz con un rival: no podrá atacarte en su turno.' },
-  { id: 'defensive', name: 'Defensiva', tokens: 4, text: '+1 de defensa en todas tus regiones.', defenseBonus: () => 1 },
-  { id: 'spirit', name: 'Espiritual', tokens: 5, text: 'En declive sigue puntuando y no puede ser eliminada por una tercera raza.', activeInDecline: true },
+  // ---- extra victory coins ----
+  {
+    id: 'archaeologist', name: 'Arqueóloga', tokens: 5,
+    text: '+1 moneda por cada Lugar Legendario o Artefacto que haya en regiones que ocupes.',
+    scoreBonus: (ctx) => ctx.state.legendary.filter((t) => ctx.owned.some((r) => r.id === t.regionId)).length,
+  },
+  { id: 'farmer', name: 'Granjera', tokens: 4, text: '+1 moneda por cada Llanura que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'fields') },
+  { id: 'fishing', name: 'Pescadora', tokens: 4, text: '+1 moneda por cada región costera o pegada a un lago que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.coastal || r.neighbors.some((n) => REGION_LOOKUP[n]?.terrain === 'lake')) },
+  { id: 'herbalist', name: 'Herborista', tokens: 4, text: '+1 moneda por cada Colina que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'hills') },
+  { id: 'mountaineer', name: 'Montañesa', tokens: 4, text: '+1 moneda por cada Montaña que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.mountain) },
+  { id: 'ranger', name: 'Guardabosques', tokens: 4, text: '+1 moneda por cada Bosque que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'forest') },
+  { id: 'swampwalker', name: 'Caminante de Pantanos', tokens: 4, text: '+1 moneda por cada Pantano que ocupes.', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'swamp') },
+  { id: 'mining', name: 'Minera', tokens: 4, text: '+1 moneda por cada Caverna que ocupes. (Requiere el mapa con cavernas.)', scoreBonus: (ctx) => count(ctx, (r) => r.terrain === 'cave') },
+  { id: 'explorer', name: 'Exploradora', tokens: 4, text: '+1 moneda por cada isla en la que tengas al menos una región.', scoreBonus: (ctx) => new Set(ctx.owned.map((r) => r.landmass)).size },
+  { id: 'battlemaster', name: 'Maestre de Guerra', tokens: 5, text: '+1 moneda por cada región ocupada (Múrlocs u otra raza) que conquistes este turno.', scoreBonus: (ctx) => (ctx.faction.inDecline ? 0 : ctx.state.turn.conqueredOccupied.length) },
+  {
+    id: 'enraged', name: 'Enfurecida', tokens: 5, enraged: true,
+    text: 'Por cada región que conquistes con 2 o más fichas defensoras, ganas tantas monedas como fichas defensoras tuviera.',
+  },
+  // ---- conquest discounts ----
+  { id: 'blacksmith', name: 'Herrero', tokens: 4, text: 'Todas las conquistas cuestan 1 ficha menos.', conquestCost: () => -1 },
+  { id: 'sailing', name: 'Navegante', tokens: 5, text: 'El desembarco por mar no cuesta la ficha extra.', conquestCost: () => 0 },
+  // ---- defence ----
+  {
+    id: 'defensive', name: 'Defensiva', tokens: 4, watchtower: true,
+    text: 'Al acabar tu turno colocas 1 Torre de Vigía en una Llanura tuya rodeada por tus regiones: no puede ser conquistada.',
+  },
+  {
+    id: 'garrisoned', name: 'Guarnición', tokens: 3, markers: 10,
+    text: 'Cada región que ocupes recibe una Fortaleza (+1 defensa y +1 moneda al puntuar). Hasta 10 en total.',
+  },
+  {
+    id: 'marshdweller', name: 'Habitante del Marjal', tokens: 4, activeInDecline: true, marshdweller: true,
+    text: 'Quien conquiste uno de tus Pantanos te paga 1 moneda. El poder sigue activo en declive.',
+  },
+  // ---- special actions ----
+  {
+    id: 'champion', name: 'Campeón', tokens: 5, champion: true,
+    text: 'Tu Campeón: 1 vez por turno conquistas una región adyacente con el Campeón solo (defiende +1; si te lo capturan, lo rescatas pagando 1 moneda).',
+  },
+  {
+    id: 'beastmaster', name: 'Maestra de Bestias', tokens: 4, beasts: true,
+    text: 'Al empezar tu turno recibes 1 ficha de bestia por cada Colina que ocupes (máx 5): luchan como fichas de tu raza.',
+  },
+  {
+    id: 'intimidating', name: 'Intimidadora', tokens: 5, intimidating: true,
+    text: '3 veces por turno: mueves 1 ficha de una región rival adyacente a otra región de ese mismo rival (si no tiene dónde meterla, la descarta).',
+  },
+  {
+    id: 'portalmage', name: 'Maga de Portales', tokens: 5, portalmage: true,
+    text: '2 veces por turno intercambia las fichas entre dos regiones Mágicas. (Requiere el mapa con regiones mágicas.)',
+  },
 ]
 
 export const RACE_BY_ID = Object.fromEntries(RACES.map((r) => [r.id, r]))

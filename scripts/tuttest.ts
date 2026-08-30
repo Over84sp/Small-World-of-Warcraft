@@ -2,7 +2,7 @@ import { createGame, selectCombo, conquer, conquestCost, startRedeploy, autoRede
 import type { GameState } from '../src/game/types'
 
 const HORDE='tut-horde'
-const setR=(s:GameState,id:string,o:string|null,t:number)=>{s.regions[id]={owner:o,tokens:t,fortress:0,hero:false,wisp:0,bomb:false,mo:false}}
+const setR=(s:GameState,id:string,o:string|null,t:number)=>{s.regions[id]={owner:o,tokens:t,fortress:0,hero:false,wisp:0,bomb:false,mo:false,tower:false}}
 let ok=true
 const chk=(c:boolean,m:string)=>{console.log((c?'  OK  ':'  FAIL')+'  '+m); if(!c) ok=false}
 
@@ -15,7 +15,7 @@ s.legendary=[]
 setR(s,'sa7','lost-tribe',1); setR(s,'sa3','lost-tribe',1)
 
 // step: pick
-s.tray[0]={raceId:'humans',powerId:'merchant',bonusCoins:0}
+s.tray[0]={raceId:'humans',powerId:'ranger',bonusCoins:0}
 selectCombo(s,0)
 chk(!!s.players[0].activeUid,'elige Humanos Mercaderes')
 const f=()=>s.factions[s.players[0].activeUid!]
@@ -47,7 +47,7 @@ i=conquestCost(s,'sa3'); chk(i.reachable&&i.cost===3,`Colinas Hillsbrad tribu pe
 chk(conquer(s,'sa3').ok,'somete Colinas Hillsbrad')
 
 // step: combat sa5
-s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'berserk',inDecline:false,hand:0,markers:0}
+s.factions[HORDE]={uid:HORDE,playerId:1,raceId:'orcs',powerId:'ranger',inDecline:false,hand:0,markers:0,wispWalls:0,bombs:0,beasts:0}
 s.players[1].activeUid=HORDE
 setR(s,'sa5',HORDE,2)
 chk(f().hand===9,`tras Hillsbrad quedan ${f().hand} fichas (12-3=9)`)

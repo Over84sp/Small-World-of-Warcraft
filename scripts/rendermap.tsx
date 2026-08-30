@@ -8,18 +8,18 @@ import { conquer, selectCombo } from '../src/game/engine'
 
 const s = createGame([{ name: 'A', isBot: false }, { name: 'B', isBot: true }], 20260828, process.env.BOARD ?? 'kalimdor')
 s.phase = 'pick'
-s.tray[0] = { raceId: 'humans', powerId: 'fortified', bonusCoins: 0 }
+s.tray[0] = { raceId: 'humans', powerId: 'garrisoned', bonusCoins: 0 }
 selectCombo(s, 0)
 const f = s.factions[s.players[0].activeUid!]
 f.hand = 30
 for (const id of (process.env.BOARD === 'azeroth' ? ['durotar','azshara','hyjal','tirisfal','silverpine'] : ['durotar','azshara','hyjal'])) conquer(s, id)
 s.regions['durotar'].fortress = 1
 s.regions['azshara'].hero = true
-s.factions['x'] = { uid: 'x', playerId: 1, raceId: 'orcs', powerId: 'berserk', inDecline: false, hand: 0, markers: 0 }
+s.factions['x'] = { uid: 'x', playerId: 1, raceId: 'orcs', powerId: 'ranger', inDecline: false, hand: 0, markers: 0, wispWalls: 0, bombs: 0, beasts: 0 }
 s.players[1].activeUid = 'x'
-s.regions['nbarrens'] = { owner: 'x', tokens: 3, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
-if (process.env.BOARD === 'azeroth') { s.regions['elwynn'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }; s.regions['duskwood'] = { owner: 'x', tokens: 4, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false } }
-s.regions['mulgore'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false }
+s.regions['nbarrens'] = { owner: 'x', tokens: 3, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
+if (process.env.BOARD === 'azeroth') { s.regions['elwynn'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }; s.regions['duskwood'] = { owner: 'x', tokens: 4, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false } }
+s.regions['mulgore'] = { owner: 'x', tokens: 2, fortress: 0, hero: false, wisp: 0, bomb: false, mo: false, tower: false }
 
 const html = renderToStaticMarkup(
   <MapView state={s} selected={null} onSelect={() => {}} highlightTargets markerMode={false} compact={false} />,
