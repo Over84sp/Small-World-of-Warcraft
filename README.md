@@ -31,9 +31,10 @@ todo el mapa, el arte y el código están redibujados desde cero, sin usar mater
   para cada lección (desembarco, montañas, tribus perdidas, combate, dado, redespliegue, declive).
 - **Adaptado a móvil**: layout de mapa + panel deslizante, zoom con pellizco y arrastre,
   objetivos táctiles de 44 px y confirmación en dos toques.
-- **Animación de conquista**: anillos de asalto sobre la región, destello y un panel que
-  explica el combate — desglose del coste (base, defensa, desembarco, patria, dado…), tirada
-  y resultado. Los rivales IA hacen una pausa al conquistar para que puedas seguirlo.
+- **Popup de conquista**: cada asalto abre una tarjeta con dibujos — espadas, escudo de
+  defensa, ancla de desembarco, bandera de patria, dado — que desglosa el coste ficha a ficha
+  y muestra el resultado. Se queda en pantalla hasta que la cierras o pasa lo siguiente, y en
+  modo 📖 (activado por defecto) los rivales **esperan a que pulses "Continuar"**.
 - **Deshacer** (Ctrl+Z o el botón ↶) para revertir cualquier acción de tu turno.
 - **Guardado automático** en `localStorage` tras cada jugada: cierra la pestaña y continúa
   donde lo dejaste desde la pantalla inicial.

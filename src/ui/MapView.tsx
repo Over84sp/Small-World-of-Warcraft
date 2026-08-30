@@ -408,52 +408,18 @@ export function MapView({
             )
           })}
 
-          {/* ---- conquest narration: rings on the region + an explainer panel ---- */}
+          {/* ---- conquest narration: rings on the region (the card explains) ---- */}
           {battle && (() => {
             const reg = regions.find((x) => x.id === battle.regionId)
             if (!reg) return null
             const [cx, cy] = reg.center
-            const attacker = state.players[battle.attackerPid]
-            const stB = state.regions[battle.regionId]
-            const won = !!battle.attackerUid && stB.owner === battle.attackerUid
-            const failed = !won && state.turn.assaultFailed
-            const rolling = battle.useDie && !won && !failed
             const color = PLAYER_COLORS[battle.attackerPid]
-            const above = cy - s(64) > viewBox.y0
-            const py = above ? cy - s(33) : cy + s(40)
-            const lines: { t: string; c: string; fs: number; bold?: boolean }[] = []
-            lines.push({ t: `⚔ ${attacker.name} → ${reg.name}`, c: color, fs: s(6.6), bold: true })
-            if (battle.champion) {
-              lines.push({ t: '🗡 Carga del Campeón: 1 ficha, la defensa no cuenta', c: '#ffd964', fs: s(5.9) })
-            } else {
-              for (let i = 0; i < battle.parts.length; i += 3) {
-                const chunk = battle.parts.slice(i, i + 3)
-                  .map(([l, v]) => (v < 0 ? `${v} ${l}` : `${v} ${l}`)).join('  ·  ')
-                lines.push({ t: chunk, c: '#c8d6e2', fs: s(5.7) })
-              }
-              lines.push({ t: `= ${battle.total} fichas`, c: '#ffd964', fs: s(6.4), bold: true })
-            }
-            if (won) lines.push({ t: '✓ ¡Conquistada!', c: '#7fe3a1', fs: s(6.6), bold: true })
-            else if (failed) lines.push({ t: '✗ Asalto fallido: fin de las conquistas', c: '#ff9c8a', fs: s(6.1) })
-            else if (rolling) lines.push({ t: `🎲 Dado: ${state.turn.diceLast ?? '…'}`, c: '#ffd964', fs: s(6.1) })
-            const w = Math.max(...lines.map((l) => l.t.length)) * s(3.5) + s(16)
-            const h = lines.length * s(9.2) + s(5)
             return (
               <g key={battle.key} className="battle" pointerEvents="none">
                 <g transform={`translate(${cx} ${cy})`}>
                   <circle className="battleRing" r={s(9)} fill="none" stroke={color} strokeWidth={s(2.4)} />
                   <circle className="battleRing" style={{ animationDelay: '.5s' }} r={s(9)} fill="none" stroke={color} strokeWidth={s(1.7)} />
                   <circle r={s(13)} fill="none" stroke={color} strokeWidth={s(0.8)} opacity={0.35} />
-                </g>
-                <g transform={`translate(${cx} ${py})`}>
-                  <g className="battlePanel">
-                    <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={s(4)}
-                      fill="#0d1620" opacity={0.94} stroke={color} strokeWidth={s(1)} />
-                    {lines.map((l, i) => (
-                      <text key={i} x={0} y={-h / 2 + s(10) + i * s(9.2)} textAnchor="middle"
-                        fontSize={l.fs} fill={l.c} fontWeight={l.bold ? 800 : 500}>{l.t}</text>
-                    ))}
-                  </g>
                 </g>
               </g>
             )

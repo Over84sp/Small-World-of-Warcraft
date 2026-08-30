@@ -10,12 +10,13 @@ import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities
 import { LEGENDARY_BY_ID } from './game/legendary'
 import type { GameState } from './game/types'
 import { MapView, type BattleAnim } from './ui/MapView'
+import { NarrationCard } from './ui/Narration'
 import { FactionIcon, LegendaryIcon } from './ui/mapArt'
 import { Setup, type SetupResult } from './ui/Setup'
 import { Tutorial } from './ui/Tutorial'
 import { PLAYER_COLORS, TERRAIN_LABEL } from './ui/theme'
 import { useIsMobile, useIsTouch } from './ui/useMediaQuery'
-import { chooseAction, applyBotAction } from './ai/bot'
+import { chooseAction, applyBotAction, type BotAction } from './ai/bot'
 import './App.css'
 
 type Screen = 'setup' | 'game' | 'tutorial'
@@ -34,8 +35,10 @@ export default function App() {
   const [intimidateMode, setIntimidateMode] = useState(false)
   const [battle, setBattle] = useState<BattleAnim | null>(null)
   const battleTimer = useRef<number | null>(null)
-  // conquests already narrated during the current bot turn: the first gets a
-  // long pause so the animation can play, the rest keep the game moving
+  // narration mode: bots pause on each conquest until the player reads the card
+  const [narrationOn, setNarrationOn] = useState(true)
+  const [waiting, setWaiting] = useState(false)
+  const pendingBot = useRef<BotAction | null>(null)
   const botConquests = useRef(0)
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
@@ -117,12 +120,16 @@ export default function App() {
 
   const player = state?.players[state.current]
   const isBotTurn = !!player?.isBot && state?.phase !== 'gameover'
+  if (waiting && (!state || !isBotTurn || screen !== 'game')) {
+    pendingBot.current = null
+    setWaiting(false)
+  }
 
-  /** narrate a conquest: rings on the region + a cost-breakdown panel */
-  const showBattle = useCallback((b: BattleAnim) => {
+  /** narrate a conquest: card + rings; sticky cards stay until closed or replaced */
+  const showBattle = useCallback((b: BattleAnim, sticky = false) => {
     setBattle(b)
     if (battleTimer.current) window.clearTimeout(battleTimer.current)
-    battleTimer.current = window.setTimeout(() => setBattle(null), 2700)
+    if (!sticky) battleTimer.current = window.setTimeout(() => setBattle(null), 4500)
   }, [])
 
   /** human readable cost breakdown of a conquest, from the pre-conquest state */
@@ -147,7 +154,6 @@ export default function App() {
     const s0 = stateRef.current!
     if (s0.turn.conquered.length === 0) botConquests.current = 0
     const action = chooseAction(structuredClone(s0))
-    let delay = 750
     if (action.kind === 'conquer') {
       const info = conquestCost(s0, action.regionId)
       if (info.reachable) {
@@ -160,15 +166,23 @@ export default function App() {
           total: action.champion ? 1 : info.cost,
           champion: action.champion ?? false,
           useDie: action.useDie,
-        })
+        }, narrationOn)
+      }
+      if (narrationOn) {
+        // wait for the player to read the card and press continue
+        pendingBot.current = action
+        setWaiting(true)
+        return
       }
       const first = botConquests.current === 0
       botConquests.current += 1
-      delay = first ? (action.champion ? 2200 : 2700) : 1800
+      var delay = first ? 3400 : 2000
     } else if (action.kind === 'decline') {
-      delay = 1300
+      var delay = 1400
     } else if (action.kind === 'endTurn' || action.kind === 'peace') {
-      delay = 950
+      var delay = 1000
+    } else {
+      var delay = 750
     }
     botTimer.current = window.setTimeout(() => {
       act((s) => {
@@ -178,7 +192,18 @@ export default function App() {
     return () => {
       if (botTimer.current) window.clearTimeout(botTimer.current)
     }
-  }, [state, isBotTurn, act, screen, showBattle]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, isBotTurn, act, screen, showBattle, narrationOn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** narration mode: apply the pending bot action once the card has been read */
+  const continueBot = useCallback(() => {
+    const a = pendingBot.current
+    if (!a) return
+    pendingBot.current = null
+    setWaiting(false)
+    act((s) => {
+      applyBotAction(s, a)
+    })
+  }, [act])
 
   // autosave: the engine state is plain JSON, so this is just a stringify
   useEffect(() => {
@@ -242,7 +267,7 @@ export default function App() {
         total: info.cost,
         champion: false,
         useDie: false,
-      })
+      }, true)
     }
     act((s) => {
       const res = conquer(s, id, false)
@@ -317,7 +342,7 @@ export default function App() {
         total: info.cost,
         champion: false,
         useDie: true,
-      })
+      }, true)
     }
     act((s) => {
       const res = conquer(s, selected, true)
@@ -522,7 +547,7 @@ export default function App() {
                             total: 1,
                             champion: true,
                             useDie: false,
-                          })
+                          }, true)
                           act((s) => {
                             const res = conquer(s, selRegion.id, false, true)
                             if (!res.ok) setFlash(res.message)
@@ -674,6 +699,11 @@ export default function App() {
             </div>
           ))}
         </div>
+        <button
+          className={`ghost${narrationOn ? ' on' : ''}`}
+          onClick={() => setNarrationOn((v) => !v)}
+          title="Los rivales esperan a que leas la explicación de cada conquista"
+        >{narrationOn ? '📖' : '📖̶'}</button>
         <button className="ghost undo" onClick={undo} disabled={!history.length || isBotTurn} title="Deshacer (Ctrl+Z)">↶</button>
         <button className="ghost" onClick={() => setRules(true)}>{isMobile ? '?' : 'Reglas'}</button>
         {state.phase !== 'gameover' && (
@@ -692,6 +722,15 @@ export default function App() {
           battle={battle}
         />
         {flash && <div className="flash">{flash}</div>}
+        {battle && (
+          <NarrationCard
+            battle={battle}
+            state={state}
+            waiting={waiting}
+            onContinue={continueBot}
+            onClose={() => { if (waiting) continueBot(); else setBattle(null) }}
+          />
+        )}
         {isBotTurn && <div className="thinking">{player.name} está pensando…</div>}
         {markerMode && <div className="modehint">Elige una región tuya · <button onClick={() => setMarkerMode(false)}>Cancelar</button></div>}
         {bombMode && <div className="modehint">💣 Elige una región rival activa adyacente a las tuyas · <button onClick={() => setBombMode(false)}>Cancelar</button></div>}

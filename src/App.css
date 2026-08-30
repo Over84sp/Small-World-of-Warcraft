@@ -490,19 +490,156 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   animation: battleRing 1.5s ease-out infinite;
 }
 
-/* the explainer panel: floats in, holds, fades out */
-@keyframes battlePanel {
-  0% { opacity: 0; transform: translateY(7px); }
-  10% { opacity: 1; transform: translateY(0); }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
-}
-.battlePanel {
-  animation: battlePanel 2.7s ease both;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .battleRing, .tokenPop, .battleFlash { animation: none; }
   .battlePanel { animation-duration: .01s; }
   .band, .bandFill, .tokenFill { transition: none; }
+}
+
+
+/* ============================================================
+   Narration card: a persistent popup that explains each conquest
+   ============================================================ */
+.narration {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(440px, calc(100% - 18px));
+  pointer-events: none;
+}
+.narration > * { pointer-events: auto; }
+
+.narrCard {
+  position: relative;
+  background: rgba(11, 19, 27, 0.96);
+  border: 1.6px solid #2a3a49;
+  border-radius: 14px;
+  padding: 11px 14px 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  animation: narrIn .28s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+@keyframes narrIn {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.narrClose {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: 0;
+  background: none;
+  color: #7f93a5;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.narrClose:hover { color: #fff; background: #1d2a36; }
+
+.narrHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.narrEmblem {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.22);
+}
+.narrTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 15.5px;
+  min-width: 0;
+}
+.narrTitle strong:last-child { color: #fff; }
+.narrArrow { color: #8fa2b3; font-size: 13px; }
+.narrTerrain {
+  margin-left: auto;
+  color: #ffd964;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+.narrSub { color: #8fa2b3; font-size: 12px; margin: 2px 0 0 39px; }
+
+.narrChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 9px 0 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #17222d;
+  border: 1px solid #26333f;
+  border-radius: 999px;
+  padding: 3px 10px 3px 7px;
+  font-size: 12.5px;
+  color: #c8d6e2;
+}
+.chip em { font-style: normal; color: #8fa2b3; }
+.chip strong { color: #fff; font-weight: 800; }
+.chip.neg strong { color: #7fe3a1; }
+.chip.tot {
+  background: #2a2410;
+  border-color: #7a5c14;
+}
+.chip.tot em { color: #ffd964; }
+.chip.tot strong { color: #ffd964; }
+
+.narrResult {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.narrResult.win { background: rgba(63, 157, 92, 0.16); color: #7fe3a1; }
+.narrResult.fail { background: rgba(200, 68, 47, 0.16); color: #ff9c8a; }
+.narrResult.wait { background: rgba(255, 210, 100, 0.10); color: #ffd964; }
+
+.narrContinue {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 0;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  background: #d9b45b;
+  color: #241b04;
+}
+.narrContinue:hover { background: #ffd964; }
+.narrContinue:active { transform: translateY(1px); }
+
+@media (max-width: 720px) {
+  .narration { bottom: 10px; }
+  .narrCard { padding: 9px 11px 10px; }
+  .narrTitle { font-size: 14px; }
+  .narrSub { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .narrCard { animation: none; }
 }
