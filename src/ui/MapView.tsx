@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { REGION_BY_ID, boardRegions, conquestCost, defenseOf, legendaryAt, ownerPlayer } from '../game/engine'
 import { LOST_TRIBE, type GameState, type RegionData } from '../game/types'
-import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL, TERRAIN_LIST, lighten, darken } from './theme'
+import { PLAYER_COLORS, TERRAIN_COLORS, TERRAIN_LABEL, TERRAIN_LIST, TERRAIN_MATERIAL, lighten, darken } from './theme'
 import { Badge, FactionMark, LegendaryMark, badgesFor, terrainDecor } from './mapArt'
 
 interface Props {
@@ -205,10 +205,6 @@ export function MapView({
           <pattern id="grain" width="140" height="140" patternUnits="userSpaceOnUse">
             <rect width="140" height="140" filter="url(#noiseTex)" />
           </pattern>
-          <filter id="causticsTex" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="2" seed="11" />
-            <feColorMatrix type="matrix" values="0 0 0 0 0.55  0 0 0 0 0.8  0 0 0 0 0.95  0 0 0 0.12 0" />
-          </filter>
           {/* darkened rim so the whole archipelago reads as sitting in deep water */}
           <radialGradient id="vignette" cx="50%" cy="45%" r="72%">
             <stop offset="60%" stopColor="#000000" stopOpacity="0" />
@@ -238,6 +234,37 @@ export function MapView({
               <stop offset="100%" stopColor={darken(TERRAIN_COLORS[t], 11)} />
             </linearGradient>
           ))}
+          {/* relief-shaded "aerial photo" material per terrain: fractal noise
+              lit from the upper-left and multiplied with the terrain colour.
+              Fully procedural — no external imagery involved. */}
+          {TERRAIN_LIST.map((t) => {
+            const m = TERRAIN_MATERIAL[t]
+            return (
+              <Fragment key={`mat-${t}`}>
+                <filter id={`tex-${t}`} x="0%" y="0%" width="100%" height="100%">
+                  <feTurbulence type="fractalNoise" baseFrequency={m.freq} numOctaves={m.octaves} seed={m.seed} stitchTiles="stitch" result="n" />
+                  <feDiffuseLighting in="n" surfaceScale={m.scale} diffuseConstant="1.15" lightingColor="#ffffff" result="lit">
+                    <feDistantLight azimuth={235} elevation={55} />
+                  </feDiffuseLighting>
+                  <feFlood floodColor={TERRAIN_COLORS[t]} result="tint" />
+                  <feBlend in="tint" in2="lit" mode="multiply" />
+                </filter>
+                <pattern id={`mat-${t}`} width={200} height={200} patternUnits="userSpaceOnUse">
+                  <rect width={200} height={200} filter={`url(#tex-${t})`} />
+                </pattern>
+              </Fragment>
+            )
+          })}
+          {/* same recipe for the sea: a lit, rippled water surface instead of flat caustics */}
+          <filter id="tex-sea" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.016" numOctaves={4} seed={44} stitchTiles="stitch" result="n" />
+            <feDiffuseLighting in="n" surfaceScale={3.4} diffuseConstant="1" lightingColor="#bfe6f5" result="lit">
+              <feDistantLight azimuth={235} elevation={58} />
+            </feDiffuseLighting>
+          </filter>
+          <pattern id="mat-sea" width={320} height={320} patternUnits="userSpaceOnUse">
+            <rect width={320} height={320} filter="url(#tex-sea)" />
+          </pattern>
           {regions.map((r) => (
             <clipPath key={`cp-${r.id}`} id={`cp-${r.id}`}>
               <path d={roundedPath(r.polygon)} />
@@ -246,9 +273,9 @@ export function MapView({
         </defs>
 
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#sea)" />
+        <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#mat-sea)" opacity="0.55" style={{ mixBlendMode: 'soft-light' }} />
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#waves)" />
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#wavesFine)" />
-        <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#causticsTex)" opacity="0.5" style={{ mixBlendMode: 'soft-light' }} />
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#vignette)" />
 
         <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
@@ -272,6 +299,7 @@ export function MapView({
                     opacity={0.4} filter="url(#foam)" pointerEvents="none" />
                 )}
                 <path d={roundedPath(r.polygon)} fill={`url(#terrain-${r.terrain})`} filter="url(#shore)" />
+                <path d={roundedPath(r.polygon)} fill={`url(#mat-${r.terrain})`} pointerEvents="none" />
                 <g clipPath={`url(#cp-${r.id})`}>
                   <rect x={r.center[0] - 60} y={r.center[1] - 60} width={120} height={120}
                     fill="url(#grain)" opacity={0.5} style={{ mixBlendMode: 'overlay' }} pointerEvents="none" />

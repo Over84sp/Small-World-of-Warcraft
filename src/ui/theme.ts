@@ -75,3 +75,21 @@ export function darken(hex: string, amt: number): string {
 }
 
 export const TERRAIN_LIST = Object.keys(TERRAIN_COLORS) as Terrain[]
+
+/** feTurbulence + feDiffuseLighting recipe per terrain: baseFrequency (x y),
+ *  octaves, seed and relief height. Tuned per material so each terrain reads
+ *  like an aerial photo texture instead of a flat fill. */
+export interface MaterialParams {
+  freq: string
+  octaves: number
+  seed: number
+  scale: number
+}
+export const TERRAIN_MATERIAL: Record<Terrain, MaterialParams> = {
+  fields: { freq: '0.02 0.1', octaves: 3, seed: 5, scale: 2.2 },
+  forest: { freq: '0.1 0.1', octaves: 5, seed: 12, scale: 5.4 },
+  hills: { freq: '0.03 0.034', octaves: 4, seed: 8, scale: 4.6 },
+  mountains: { freq: '0.02 0.022', octaves: 5, seed: 21, scale: 9.5 },
+  swamp: { freq: '0.05 0.022', octaves: 4, seed: 33, scale: 3.3 },
+  wasteland: { freq: '0.035 0.03', octaves: 4, seed: 44, scale: 5.2 },
+}
