@@ -551,5 +551,24 @@ chk(POWERS.length === 20, `hay exactamente 20 poderes oficiales (${POWERS.length
   chk(s.players[0].coins === coinsA - 1, `el dueño paga 1 moneda de rescate (${coinsA} -> ${s.players[0].coins})`)
 }
 
+
+{
+  // Maestre de Guerra: los Múrlocs también cuentan como región ocupada
+  const { s } = withRace('orcs', 'battlemaster')
+  conquer(s, 'sa3')                        // sa3 arranca con Múrlocs
+  const sc = scoreFor(s, 0)
+  chk(s.turn.conqueredOccupied.includes('sa3'), 'conquistar Múrlocs cuenta como región ocupada')
+  chk(sc.detail.some((d) => d.includes('Maestre de Guerra: +1')), `el Maestre cobra por los Múrlocs: ${sc.detail.join(' | ')}`)
+}
+{
+  // Intimidadora: los Múrlocs se dejan intimidar y su ficha se descarta (no se replega)
+  const { s, f } = withRace('orcs', 'intimidating')
+  conquer(s, 'sa6')
+  startRedeploy(s)                         // fase válida para intimidar
+  chk(s.regions['sa3'].owner === 'lost-tribe', 'sa3 tiene Múrlocs')
+  chk(intimidate(s, 'sa3'), 'se puede intimidar a los Múrlocs')
+  chk(s.regions['sa3'].tokens === 0 && s.regions['sa3'].owner === null, 'la ficha Múrloc se descarta y la región queda vacía')
+}
+
 console.log(ok ? '\nREGLAS CORRECTAS ✅' : '\nHAY FALLOS ❌')
 process.exit(ok ? 0 : 1)

@@ -650,6 +650,8 @@ export function conquer(state: GameState, regionId: string, useDie = false, useC
     if (f.raceId === 'forsaken') state.turn.souls += 1
     log(state, player.id, `expulsa a ${factionLabel(enemy)} de ${REGION_BY_ID[regionId].name}`)
   } else if (st.owner === LOST_TRIBE) {
+    // the warmonger pays for murlocs too: they count as occupied ground
+    state.turn.conqueredOccupied.push(regionId)
     if (f.raceId === 'forsaken') state.turn.souls += 1
     log(state, player.id, `somete a los Múrlocs de ${REGION_BY_ID[regionId].name}`)
   } else {
@@ -840,12 +842,20 @@ export function intimidate(state: GameState, regionId: string): boolean {
   if (!abilitiesOf(f).some((a) => a.intimidating)) return false
   if (state.turn.intimidated >= 3) return false
   const st = state.regions[regionId]
-  if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
-  const enemy = state.factions[st.owner]
-  if (enemy.inDecline || enemy.playerId === player.id) return false
+  if (!st.owner || st.owner === uid) return false
   if (st.tokens < 1) return false
   const adjacent = regionsOf(state, uid).some((r) => r.neighbors.includes(regionId))
   if (!adjacent) return false
+  if (st.owner === LOST_TRIBE) {
+    // murlocs can be bullied, but they never fall back: the token is discarded
+    st.tokens -= 1
+    state.turn.intimidated += 1
+    if (st.tokens === 0) st.owner = null
+    log(state, player.id, `😠 Expulsa a un Múrloc de ${REGION_BY_ID[regionId].name} (${state.turn.intimidated}/3)`)
+    return true
+  }
+  const enemy = state.factions[st.owner]
+  if (enemy.inDecline || enemy.playerId === player.id) return false
   // pick where the bullied token goes: the enemy's biggest other region
   const others = regionsOf(state, enemy.uid).filter((r) => r.id !== regionId)
   const dest = others.sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)[0]
@@ -958,19 +968,20 @@ function autoRaceMarkers(state: GameState) {
 
   // goblins: bots bomb the adjacent enemy region with the most tokens
   if (f.raceId === 'goblins' && player.isBot && f.bombs > 0) {
-    const placed = Object.values(state.regions).some((st) => st.bomb)
-    if (!placed) {
-      const target = boardRegions(state)
-        .filter((r) => {
-          const st = state.regions[r.id]
-          if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
-          const enemy = state.factions[st.owner]
-          return !enemy.inDecline && enemy.playerId !== player.id &&
-            state.regions[r.id].tokens > 0 &&
-            regionsOf(state, uid).some((mine) => mine.neighbors.includes(r.id))
-        })
-        .sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)[0]
-      if (target) placeBomb(state, target.id)
+    const targets = boardRegions(state)
+      .filter((r) => {
+        const st = state.regions[r.id]
+        if (!st.owner || st.owner === LOST_TRIBE || st.owner === uid) return false
+        const enemy = state.factions[st.owner]
+        return !enemy.inDecline && enemy.playerId !== player.id &&
+          state.regions[r.id].tokens > 0 &&
+          regionsOf(state, uid).some((mine) => mine.neighbors.includes(r.id))
+      })
+      .sort((a, b) => state.regions[b.id].tokens - state.regions[a.id].tokens)
+    let glued = 0
+    while (glued < 2 && f.bombs > 0 && targets.length) {
+      const t = targets.shift()!
+      if (!state.regions[t.id].bomb && placeBomb(state, t.id)) glued++
     }
   }
 
