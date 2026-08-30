@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BOARDS, REGION_BY_ID, autoRedeploy, beginTurn, canDeclineNow, comboTokens, conquer,
   conquestCost, createGame, defenseOf, diplomacyOptions, endTurn, factionLabel,
-  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, placeMarker, placeToken, plunderThisTurn, regionsOf,
+  goIntoDecline, legendaryAt, legendaryDefOf, needsDiplomacy, ownerPlayer, placeMarker, placeToken, plunderThisTurn, regionsOf,
   scoreFor, selectCombo, setPeace, sideOf, startRedeploy,
 } from './game/engine'
 import { clearSave, loadGame, saveGame } from './game/save'
 import { RACE_BY_ID, POWER_BY_ID, RACE_SIDE, SIDE_LABEL } from './game/abilities'
 import { LEGENDARY_BY_ID } from './game/legendary'
-import type { GameState } from './game/types'
+import { LOST_TRIBE, type GameState } from './game/types'
 import { MapView } from './ui/MapView'
 import { FactionIcon, LegendaryIcon } from './ui/mapArt'
 import { Setup, type SetupResult } from './ui/Setup'
@@ -28,6 +28,9 @@ export default function App() {
   const [history, setHistory] = useState<GameState[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [conquestFx, setConquestFx] = useState<{ id: string; color: string; ts: number } | null>(null)
+  const prevRegionsRef = useRef<GameState['regions'] | null>(null)
+  const prevDiceRef = useRef(0)
   const [markerMode, setMarkerMode] = useState(false)
   const [rules, setRules] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(true)
@@ -123,6 +126,43 @@ export default function App() {
     if (state && screen === 'game') saveGame(state)
   }, [state, screen])
 
+  // ---- conquest detector --------------------------------------------------
+  // fires for BOTH the human player and the bot: it just diffs region
+  // ownership between renders, so it doesn't care who caused the change.
+  useEffect(() => {
+    const prev = prevRegionsRef.current
+    if (state && prev) {
+      for (const id in state.regions) {
+        const before = prev[id]
+        const now = state.regions[id]
+        if (!before || !now || !now.owner || now.owner === LOST_TRIBE) continue
+        if (now.owner === before.owner) continue
+        const pid = ownerPlayer(state, now.owner)
+        if (pid == null) continue
+        const pname = state.players[pid]?.name ?? ''
+        const region = REGION_BY_ID[id]
+        const prevOwner = before.owner
+        const base = !prevOwner
+          ? `${pname} conquista ${region.name}`
+          : prevOwner === LOST_TRIBE
+            ? `${pname} somete la tribu perdida de ${region.name}`
+            : `${pname} expulsa a ${factionLabel(state.factions[prevOwner])} de ${region.name}`
+        const diceJustUsed = state.turn.diceUsed > prevDiceRef.current && state.turn.diceLast != null
+        setFlash(diceJustUsed ? `🎲 Dado: ${state.turn.diceLast} — ${base}` : base)
+        setConquestFx({ id, color: PLAYER_COLORS[pid], ts: Date.now() })
+        break // one conquest per state update in practice
+      }
+    }
+    prevRegionsRef.current = state?.regions ?? null
+    prevDiceRef.current = state?.turn.diceUsed ?? 0
+  }, [state])
+
+  useEffect(() => {
+    if (!conquestFx) return
+    const t = setTimeout(() => setConquestFx(null), 1500)
+    return () => clearTimeout(t)
+  }, [conquestFx])
+
   useEffect(() => {
     if (!flash) return
     const t = setTimeout(() => setFlash(null), 2600)
@@ -198,7 +238,7 @@ export default function App() {
     if (!selected) return
     act((s) => {
       const res = conquer(s, selected, true)
-      setFlash(res.rolled != null ? `🎲 Dado: ${res.rolled} — ${res.message}` : res.message)
+      if (!res.ok) setFlash(res.rolled != null ? `🎲 Dado: ${res.rolled} — ${res.message}` : res.message)
     }, true)
   }
 
@@ -499,6 +539,7 @@ export default function App() {
           highlightTargets={state.phase === 'conquer' && !isBotTurn}
           markerMode={markerMode}
           compact={isMobile}
+          conquestFx={conquestFx}
         />
         {flash && <div className="flash">{flash}</div>}
         {isBotTurn && <div className="thinking">{player.name} está pensando…</div>}

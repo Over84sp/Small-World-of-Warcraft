@@ -14,6 +14,8 @@ interface Props {
   spotlight?: string[] | null
   /** bigger text / tokens for phones */
   compact?: boolean
+  /** latest conquest (human or bot) to animate — cleared by the caller after ~1.5s */
+  conquestFx?: { id: string; color: string; ts: number } | null
 }
 
 function roundedPath(points: [number, number][], r = 3.5) {
@@ -53,10 +55,11 @@ const IDENTITY: View = { k: 1, tx: 0, ty: 0 }
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 
 export function MapView({
-  state, selected, onSelect, highlightTargets, markerMode, spotlight, compact,
+  state, selected, onSelect, highlightTargets, markerMode, spotlight, compact, conquestFx,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [view, setView] = useState<View>(IDENTITY)
+  const [panning, setPanning] = useState(false)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{ dist: number; mid: { x: number; y: number } } | null>(null)
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null)
@@ -74,6 +77,29 @@ export function MapView({
 
   // reset the camera when the board itself changes
   useEffect(() => setView(IDENTITY), [state.boardId])
+
+  // when a conquest happens off-screen (typically during the bot's turn) ease
+  // the camera over so the player can actually see where the action is
+  useEffect(() => {
+    if (!conquestFx) return
+    const r = regions.find((rr) => rr.id === conquestFx.id)
+    if (!r) return
+    setView((v) => {
+      const [cx, cy] = r.center
+      const margin = 60
+      const screenX = v.k * cx + v.tx
+      const screenY = v.k * cy + v.ty
+      const inView =
+        screenX > viewBox.x0 + margin && screenX < viewBox.x0 + viewBox.w - margin &&
+        screenY > viewBox.y0 + margin && screenY < viewBox.y0 + viewBox.h - margin
+      if (inView) return v
+      setPanning(true)
+      return { k: v.k, tx: viewBox.x0 + viewBox.w / 2 - v.k * cx, ty: viewBox.y0 + viewBox.h / 2 - v.k * cy }
+    })
+    const t = setTimeout(() => setPanning(false), 600)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conquestFx?.id, conquestFx?.ts])
 
   /** client coords -> current viewBox user units */
   const toUser = useCallback((cx: number, cy: number) => {
@@ -278,7 +304,8 @@ export function MapView({
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#wavesFine)" />
         <rect x="-2000" y="-2000" width="8000" height="8000" fill="url(#vignette)" />
 
-        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
+        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}
+          style={panning ? { transition: 'transform 550ms cubic-bezier(.22,.8,.22,1)' } : undefined}>
           {regions.map((r) => {
             const st = state.regions[r.id]
             const owner = st.owner
@@ -387,6 +414,35 @@ export function MapView({
               </g>
             )
           })}
+
+          {conquestFx && (() => {
+            const r = regions.find((rr) => rr.id === conquestFx.id)
+            if (!r) return null
+            const [cx, cy] = r.center
+            return (
+              <g key={`fx-${conquestFx.id}-${conquestFx.ts}`} pointerEvents="none">
+                <path d={roundedPath(r.polygon)} fill="none" stroke={conquestFx.color} strokeWidth={6} opacity={0.9}>
+                  <animate attributeName="opacity" values="0.9;0.9;0" keyTimes="0;0.45;1" dur="1100ms" fill="freeze" />
+                  <animate attributeName="stroke-width" values="7;2" dur="1100ms" fill="freeze" />
+                </path>
+                <circle cx={cx} cy={cy} r={6} fill="none" stroke={conquestFx.color} strokeWidth={4}>
+                  <animate attributeName="r" from="6" to="72" dur="900ms" fill="freeze" />
+                  <animate attributeName="opacity" from="0.85" to="0" dur="900ms" fill="freeze" />
+                </circle>
+                <circle cx={cx} cy={cy} r={6} fill="none" stroke={conquestFx.color} strokeWidth={2.5}>
+                  <animate attributeName="r" from="6" to="40" dur="650ms" begin="140ms" fill="freeze" />
+                  <animate attributeName="opacity" from="0.8" to="0" dur="650ms" begin="140ms" fill="freeze" />
+                </circle>
+                <g transform={`translate(${cx}, ${cy})`}>
+                  <animateTransform attributeName="transform" type="translate" additive="sum"
+                    values="0 16;0 -20" dur="480ms" fill="freeze" />
+                  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.18;0.75;1" dur="1400ms" fill="freeze" />
+                  <path d="M0 -16 L0 12" stroke="#161616" strokeWidth={1.8} />
+                  <path d="M0 -16 L15 -9 L0 -2 Z" fill={conquestFx.color} stroke="#101010" strokeWidth={1} />
+                </g>
+              </g>
+            )
+          })()}
         </g>
       </svg>
 
